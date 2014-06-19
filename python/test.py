@@ -118,9 +118,11 @@ phi[2] = numpy.linspace(-0.25, 1.25, phi.shape[1])
 typ = numpy.empty_like(phi, dtype=numpy.uint8)
 typ.fill(eb.OBS_MAG)
 
-# Generate time array and model.
-t = parm[eb.PAR_T0] + phi*parm[eb.PAR_P]
-y = eb.model(parm, t, typ)
+# These calls both do the same thing.  First, phase.
+y = eb.model(parm, phi, typ, eb.FLAG_PHI)
+# Alternative using time.
+#t = parm[eb.PAR_T0] + phi*parm[eb.PAR_P]
+#y = eb.model(parm, t, typ)
 
 # Plot eclipses in top 2 panels.  Manual y range, forced same on
 # both plots.  x range is already guaranteed to be the same above.

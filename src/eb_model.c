@@ -191,8 +191,15 @@ void FUNC (double *parm, double *t, unsigned char *typ,
   ss.oa2  = parm[EB_PAR_OOE22A];
   ss.ob2  = parm[EB_PAR_OOE22B];
 
-  /* Angular frequency of orbit */
-  omega = TWOPI / period;
+  if(flags & EB_FLAG_PHI) {
+    /* [0,1] phase, not time */
+    tconj = 0.0;
+    omega = TWOPI;
+  }
+  else {
+    /* Angular frequency of orbit */
+    omega = TWOPI / period;
+  }
 
   /* Convert phase offset to radians */
   dphi *= TWOPI;
