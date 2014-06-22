@@ -121,7 +121,7 @@ static inline void ltt (double cltt,
 }
 
 void FUNC (double *parm, double *t, unsigned char *typ,
-           DATATYPE *out, int flags, int npt) {
+           DATATYPE *out, unsigned char *ieclout, int flags, int npt) {
   struct star sp, ss, *s;
 
   double ecosw, esinw, tconj, period, dphi;
@@ -149,6 +149,8 @@ void FUNC (double *parm, double *t, unsigned char *typ,
   DATATYPE ltot;
 
   DATATYPE rrhomin;
+
+  unsigned char iecl;
 
   /* Unpack parameter vector into a more convenient form. */
   jsb     = parm[EB_PAR_J];
@@ -475,16 +477,26 @@ void FUNC (double *parm, double *t, unsigned char *typ,
 
     if(typ[p] == EB_OBS_A) {
       out[p] = a;
+
+      if(ieclout) {
+        if(a >= 1 || rr == 0)
+          ieclout[p] = 0;
+        else
+          ieclout[p] = 1;
+      }
+
       continue;  /* skip rest */
     }
 
     if(a >= 1 || rr == 0) {  /* no overlap, integrals trivially zero */
       area = 0;
       fecl = 0;
+      iecl = 0;
     }
     else if(a <= -1) {  /* completely eclipsed */
       area = 1;
       fecl = 1;
+      iecl = 1;
     }
     else {  /* gotta do some integrations then */
       /* Method of Mandel & Agol (2002).  The notation has been modified
@@ -619,6 +631,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
       }
 
       fecl = (area + s->uss*(lam-area) + s->u2*eta) * s->ldnorm;
+      iecl = 1;
     }
 
     /* Take off the eclipse.  Assumes spots have the same limb
@@ -642,5 +655,8 @@ void FUNC (double *parm, double *t, unsigned char *typ,
       else
         out[p] = ltot;
     }
+
+    if(ieclout)
+      ieclout[p] = iecl;
   }
 }

@@ -57,6 +57,7 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
                (double *) PyArray_DATA(tarr),
                (uint8_t *) PyArray_DATA(typarr),
                (double *) PyArray_DATA(outarr),
+               NULL,
                flags, npt);
 
   /* Done */

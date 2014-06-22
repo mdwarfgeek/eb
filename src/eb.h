@@ -79,9 +79,9 @@
    but note that a lot of unnecessary computations are done at each
    function call if all you want are radial velocities. */
 void eb_model_dbl (double *parm, double *t, unsigned char *typ,
-                   double *out, int flags, int npt);
+                   double *out, unsigned char *iecl, int flags, int npt);
 void eb_model_flt (double *parm, double *t, unsigned char *typ,
-                   float *out, int flags, int npt);
+                   float *out, unsigned char *iecl, int flags, int npt);
 
 /* Utility subroutines from ebutil.c */
 double eb_phisec (double esinw, double ecosw);
