@@ -9,18 +9,16 @@ include ../make.inc
 
 all: libeb.a
 
+depend:
+	$(CC) -E -MM $(C_SRCS) $(S_SRCS) > .depend
+
 libeb.a: $(OBJS)
 	rm -f $@
 	ar r $@ $(OBJS)
 	ranlib $@
 
-dellppi_gen.o: ellppi_gen.c
-
-fellppi_gen.o: ellppi_gen.c
-
-eb_model_dbl.o: eb_model.c
-
-eb_model_flt.o: eb_model.c
-
 clean:
 	rm -f $(OBJS) libeb.a
+	rm -f .depend
+
+sinclude .depend
