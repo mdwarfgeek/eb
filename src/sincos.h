@@ -2,6 +2,7 @@
 #define SINCOS_H
 
 #include <math.h>
+#include <features.h>
 
 #if defined(__GNUC__) && (defined(__i386) || defined(__amd64))
 
