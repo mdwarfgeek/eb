@@ -4,11 +4,12 @@
 #include <math.h>
 
 #include "eb.h"
+#include "machconst.h"
 #include "sincos.h"
 
-/* For testing only */
+/* Temporary */
 extern void ELLKE (DATATYPE y, DATATYPE *ke);
-extern DATATYPE ELLPPI (DATATYPE p, DATATYPE y);
+extern DATATYPE ELLPI (DATATYPE p, DATATYPE y);
 
 /* These define how far the Newton-Raphson iterations to solve Kepler's
    equation go.  The precision here is probably overkill for most
@@ -144,11 +145,9 @@ void FUNC (double *parm, double *t, unsigned char *typ,
   DATATYPE d, dsq;
   DATATYPE rr, rrsq, a, b, asq, bsq;
   DATATYPE eta, lam, kap0, kap1;
-  DATATYPE ksq, m, q, ke[2], tpnk, tt, ab, ts, drr;
+  DATATYPE y, q, ke[2], tpnk, tt, ab, ts, drr;
   DATATYPE area, fecl;
   DATATYPE ltot;
-
-  DATATYPE rrhomin;
 
   unsigned char iecl;
 
@@ -315,18 +314,6 @@ void FUNC (double *parm, double *t, unsigned char *typ,
                          sp.oa2*sp.oa2 + sp.ob2*sp.ob2);
   ss.oav = ss.ob + TSQRT(ss.oa1*ss.oa1 + ss.ob1*ss.ob1 +
                          ss.oa2*ss.oa2 + ss.ob2*ss.ob2);
-
-  /* Compute 1/(maximum rho) for elliptic third kind.  A safe value
-     is 1/4 of the cube root of the largest representable floating
-     point number.  a < b in R_C, so this limit arises from taking
-     a = b and noting that the largest number needed in R_C is
-     b + lambda ~ 4*rho**3 + ...
-     Maximum rho is computed as:
-     (1/4) * FLT_RADIX ** (TMAXEXP/3)
-     where TMAXEXP is the maximum floating point exponent.  This
-     saves fully computing the cube root, but wastes a little of the
-     potential headroom if TMAXEXP % 3 is not 0. */
-  rrhomin = TSCALBN(4.0, -TMAXEXP/3);
 
   /* Loop over light curve points */
   for(p = 0; p < npt; p++) {
@@ -516,7 +503,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
       asq = a*a;
       bsq = b*b;
 
-      if(b == 1) {  /* b = 1, touches limb (case 4, errata 3 and 5) */
+      if(TABS(bsq-1.0) < TEPS) {  /* b = 1, touches limb (case 4, errata 3 and 5) */
         area = rrsq;
         eta = rrsq*(0.5*rrsq + dsq);
 
@@ -528,7 +515,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
         area = rrsq;
         eta = rrsq*(0.5*rrsq + dsq);
 
-        if(asq < rrhomin*bsq) {  /* cases 5 and 6: touches center */
+        if(asq <= TSQRTMIN*bsq) {  /* cases 5 and 6: touches center */
           if(d == 0.5) {  /* case 6 */
             lam = 1.0/3 - 4.0/(9*M_PI);
           }
@@ -545,40 +532,12 @@ void FUNC (double *parm, double *t, unsigned char *typ,
           ab = a*b;
 
           /* Elliptic integrals 1st and 2nd */
-          ksq = 4*d*rr/(1-asq);
-          ELLKE(1-ksq, ke);
+          y = (1-bsq)/(1-asq);
+          ELLKE(y, ke);
 
-          /* Elliptic integral 3rd.  From Carlson,
-
-             PI(n, k) = K(k) + n R_J(1-n, 1-k^2) / 3
-
-             We need 3*(ab/a^2)*PI(n, k) with n = 1 - b^2/a^2.
-
-             This won't work as written because a can be very small, and
-             the behavior of PI at large (1-n) in the Carlson method
-             relies on cancellation of the two terms in the equation - so
-             PI/a^2 multiplies the cancellation error by a large number.
-
-             Instead, we use the following identities:
-
-             PI(n, k^2) = PI(n/(n-1), k^2/(k^2-1)) / ((1-n) sqrt(1-k^2))
-
-             and
-
-             K(k) = K(k^2/(k^2-1)) / sqrt(1-k^2)
-
-             to yield
-
-             PI(n, k^2) = q (K(k) + (1-q) sqrt(1-m) R_J(q, 1-m) / 3)
-
-             where q = a^2/b^2 and m = k^2/(k^2-1).  The q cancels
-             out the 1/a^2 problem.  b is zero only if rr is. */
-          m = ksq/(ksq-1);
-          q = asq/bsq;
-
-          /* Evaluate 3*(ab/a^2)*PI(n, k) 
-             PI(n, k) = K(k) - n*ellppi(1+n, 1-k^2)/3 */
-          tpnk = a * (3*ke[0] + (1-q)*TSQRT(1-m)*ELLPPI(q, 1-m)) / b;
+          /* Elliptic integral 3rd */
+          q = b / a;
+          tpnk = 3*q * ELLPI(TABS(q), y);
 
           /* lambda^d */
           lam = 2*((1 - 5*dsq + rrsq + ab*ab)*ke[0] +
@@ -589,7 +548,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
             lam += 2.0/3.0;  /* heaviside(rr-d) term */
         }
       }
-      else {  /* occulter overlaps disk: |1-rr| < d <= 1+rr */
+      else {  /* occulter overlaps disk: |1-rr| < d <= 1+rr or b > 1 */
         /* Cases 2, 7 and 8 from the paper */
         tt = 1 - rrsq + dsq;
         ts = rrsq + dsq;
@@ -602,7 +561,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
         eta  = (kap1 + (ts + dsq)*kap0 -
                 0.25*(1 + 5*rrsq + dsq)*TSQRT((1.0-asq)*(bsq-1.0))) / (2*M_PI);
 
-        if(asq < rrhomin) {  /* case 7 and erratum 2: touches center */
+        if(asq <= TSQRTMIN) {  /* case 7 and erratum 2: touches center */
           ELLKE(1 - 1.0/(4*rrsq), ke);
           lam = 1/3.0 - ((1-4*rrsq)*(3-8*rrsq)*ke[0]/rr -
                          16*(2*rrsq-1)*ke[1]*rr) / (9*M_PI);
@@ -611,14 +570,12 @@ void FUNC (double *parm, double *t, unsigned char *typ,
           ab = a*b;
 
           /* Elliptic integrals 1st and 2nd */
-          ksq = (1-asq)/(4*drr);
-          ELLKE(1-ksq, ke);
+          y = (bsq-1)/(bsq-asq);
+          ELLKE(y, ke);
 
-          /* Elliptic integral 3rd.  Uses the same trick as above. */
-          m = ksq/(ksq-1);
-          q = asq;
-
-          tpnk = ab * (3*ke[0] + (1-q)*TSQRT(1-m)*ELLPPI(q, 1-m));
+          /* Elliptic integral 3rd */
+          q = 1.0 / a;
+          tpnk = 3*q*b * ELLPI(TABS(q), y);
 
           /* lambda^d */
           lam = (((1-bsq)*(2*bsq+asq-3) + 3*ab*(bsq-2))*ke[0] +

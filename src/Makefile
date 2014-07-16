@@ -1,16 +1,23 @@
 # Makefile for EB model library
 
 C_SRCS=eb_model_flt.c eb_model_dbl.c eb_strings.c eb_util.c \
-	dellke_gen.c dellppi_gen.c fellke_gen.c fellppi_gen.c
+	dellke_gen.c dellppi_gen.c dellpi_gen.c \
+	fellke_gen.c fellppi_gen.c fellpi_gen.c
 S_SRCS=
 OBJS=${C_SRCS:%.c=%.o} ${S_SRCS:%.S=%.o}
 
 include ../make.inc
 
-all: libeb.a
+all: machconst.h libeb.a
 
-depend:
+depend: machconst.h
 	$(CC) -E -MM $(C_SRCS) $(S_SRCS) > .depend
+
+machconst.h: makemach
+	./makemach > machconst.h
+
+makemach: makemach.c
+	$(CC) $(CFLAGS) -o makemach makemach.c -lm
 
 libeb.a: $(OBJS)
 	rm -f $@
@@ -19,6 +26,7 @@ libeb.a: $(OBJS)
 
 clean:
 	rm -f $(OBJS) libeb.a
+	rm -f machconst.h makemach
 	rm -f .depend
 
 sinclude .depend
