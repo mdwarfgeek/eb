@@ -11,7 +11,7 @@ include ../make.inc
 all: machconst.h libeb.a
 
 depend: machconst.h
-	$(CC) -E -MM $(C_SRCS) $(S_SRCS) > .depend
+	$(CC) $(CFLAGS) -E -MM $(C_SRCS) $(S_SRCS) > .depend
 
 machconst.h: makemach
 	./makemach > machconst.h
