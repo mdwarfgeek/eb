@@ -28,5 +28,3 @@ clean:
 	rm -f $(OBJS) libeb.a
 	rm -f machconst.h makemach
 	rm -f .depend
-
-sinclude .depend
