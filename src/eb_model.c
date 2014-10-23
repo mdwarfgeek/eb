@@ -22,6 +22,8 @@ extern DATATYPE ELLPI (DATATYPE p, DATATYPE y);
    when computing the eclipse. */
 struct star {
   DATATYPE rr;      /* radius ratio ("that"/"this") */
+  DATATYPE rrsq;
+
   DATATYPE q;       /* mass ratio ("that"/"this") */
   DATATYPE u1;      /* limb darkening */
   DATATYPE u2;
@@ -32,7 +34,8 @@ struct star {
   DATATYPE ldint;   /* LD integral */
   DATATYPE ldnorm;  /* 1/(LD integral) */
 
-  DATATYPE r;       /* r/a */
+  DATATYPE rsq;     /* (r/a)**2 */
+  DATATYPE rcb;     /* (r/a)**3 */
   DATATYPE aorsq;   /* (a/r)**2 */
 
   DATATYPE o;
@@ -55,13 +58,12 @@ struct star {
 };
 
 static inline void bright (struct star *s) {
-  DATATYPE rrr, eps, rb, fmax, fmin;
+  DATATYPE eps, rb, fmax, fmin;
 
   /* Biaxial ellipsoid dimensions and oblateness.
      See Chandrasekhar (1933). */
-  rrr = s->r*s->r*s->r;
-  eps = 1.5 * s->q * rrr / (1.0 + rrr * (1.0 + 7*s->q) / 6);
-  rb = s->r * TCBRT(1.0-eps);
+  eps = 1.5 * s->q * s->rcb / (1.0 + s->rcb * (1.0 + 7*s->q) / 6);
+  rb = TCBRT(1.0-eps);
 
   /* Min and max brightness, from Gimenez. */
   fmax = 1.0 - s->u1*(1.0 - 0.4*eps)/3.0 - s->u2*(1.0 - 0.6*eps)/6.0
@@ -73,7 +75,7 @@ static inline void bright (struct star *s) {
   s->delt = (fmax-fmin)/fmax;
 
   /* Unnormalized brightness. */
-  s->o = rb*rb * fmax;
+  s->o = s->rsq * rb*rb * fmax;
 }
 
 static inline void ltt (double cltt,
@@ -136,7 +138,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
   DATATYPE atid, lth, zp;
 
   DATATYPE csqi, ssqi, sini;
-  DATATYPE norm;
+  DATATYPE rp, norm;
 
   int p, i;
 
@@ -144,7 +146,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
   DATATYPE h, hsq;
   DATATYPE d, dsq;
   DATATYPE rr, rrsq, a, b, asq, bsq;
-  DATATYPE eta, lam, kap0, kap1;
+  DATATYPE eta, lam, kap0, kap1, ksrt;
   DATATYPE y, q, ke[2], tpnk, tt, ab, ts, drr;
   DATATYPE area, fecl;
   DATATYPE ltot;
@@ -253,6 +255,10 @@ void FUNC (double *parm, double *t, unsigned char *typ,
   /* Radius ratio, both ways up */
   ss.rr = 1.0 / sp.rr;
 
+  /* Square of radius ratio */
+  sp.rrsq = sp.rr*sp.rr;
+  ss.rrsq = ss.rr*ss.rr;
+
   /* Limb darkening integral */
   sp.uss = sp.u1 + 2*sp.u2;
   sp.ldint = 1.0 - sp.u1 / 3.0 - sp.u2 / 6.0;
@@ -262,13 +268,22 @@ void FUNC (double *parm, double *t, unsigned char *typ,
   ss.ldint = 1.0 - ss.u1 / 3.0 - ss.u2 / 6.0;
   ss.ldnorm = 1.0 / ss.ldint;
 
-  /* Radii/a of both stars */
-  sp.r = rsum / (1.0 + sp.rr);
-  ss.r = sp.rr * sp.r;
+  /* Radii: this is a bit subtle.  The eclipse calculation needs the
+     values to be consistent in the sense of having the correct ratios,
+     so the calculation is arranged to compute the quantity for the
+     primary star and then multiply by the appropriate power of the
+     radius ratio. */
 
-  /* And (a/r)**2 */
-  sp.aorsq = 1.0 / (sp.r*sp.r);
-  ss.aorsq = 1.0 / (ss.r*ss.r);
+  /* Radius of primary */
+  rp = rsum / (1.0+sp.rr);
+
+  /* Compute (r/a)**2 */
+  sp.rsq = rp*rp;
+  ss.rsq = sp.rsq * sp.rrsq;
+
+  /* Compute (a/r)**2 */
+  sp.aorsq = 1.0 / sp.rsq;
+  ss.aorsq = sp.aorsq * ss.rrsq;
 
   /* 1 / (1+q) and -q / (1+q) scaling factors
      used in light travel correction */
@@ -279,14 +294,18 @@ void FUNC (double *parm, double *t, unsigned char *typ,
   if(sp.q > 0) {
     ss.q = 1.0 / sp.q;
 
+    /* (r/a)**3 */
+    sp.rcb = sp.rsq * rp;
+    ss.rcb = sp.rcb * sp.rrsq*sp.rr;
+
     bright(&sp);
     bright(&ss);
   }
   else {
     ss.q = 0;  /* plugs up compiler warning */
 
-    sp.o = sp.r*sp.r * sp.ldint;
-    ss.o = ss.r*ss.r * ss.ldint;
+    sp.o = sp.rsq * sp.ldint;
+    ss.o = ss.rsq * ss.ldint;
 
     sp.delt = 0;
     ss.delt = 0;
@@ -303,8 +322,8 @@ void FUNC (double *parm, double *t, unsigned char *typ,
     /* "refl" is the albedo, so multiply by l(other) (r/a)^2 */
     shrt = ctid*ctid;
 
-    sp.refl *= ss.o * (1.0 - ss.delt * shrt) * sp.r*sp.r;
-    ss.refl *= sp.o * (1.0 - sp.delt * shrt) * ss.r*ss.r;
+    sp.refl *= ss.o * (1.0 - ss.delt * shrt) * sp.rsq;
+    ss.refl *= sp.o * (1.0 - sp.delt * shrt) * ss.rsq;
   }
   /* otherwise, the original EBOP-alike model is used, this is
      usually better when fitting for reflection. */
@@ -456,8 +475,8 @@ void FUNC (double *parm, double *t, unsigned char *typ,
       continue;  /* skip rest */
     }
 
+    rrsq = s->rrsq;
     rr = s->rr;
-    rrsq = rr*rr;
 
     a = d-rr;
     b = d+rr;
@@ -503,7 +522,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
       asq = a*a;
       bsq = b*b;
 
-      if(TABS(bsq-1.0) < TEPS) {  /* b = 1, touches limb (case 4, errata 3 and 5) */
+      if(TABS(bsq-1.0) < TEPS) {  /* touches limb (case 4, errata 3, 5) */
         area = rrsq;
         eta = rrsq*(0.5*rrsq + dsq);
 
@@ -556,10 +575,11 @@ void FUNC (double *parm, double *t, unsigned char *typ,
 
         kap0 = rrsq*TACOS((ts - 1) / (2*drr));
         kap1 = TACOS(tt / (2*d));
+        ksrt = TSQRT(dsq - 0.25*tt*tt);
 
-        area = (kap0 + kap1 - TSQRT(dsq - 0.25*tt*tt)) / M_PI;  /* Eq. 1 */
+        area = (kap0 + kap1 - ksrt) / M_PI;  /* Eq. 1 */
         eta  = (kap1 + (ts + dsq)*kap0 -
-                0.25*(1 + 5*rrsq + dsq)*TSQRT((1.0-asq)*(bsq-1.0))) / (2*M_PI);
+                0.5*(1 + 5*rrsq + dsq)*ksrt) / (2*M_PI);
 
         if(asq <= TSQRTMIN) {  /* case 7 and erratum 2: touches center */
           ELLKE(1 - 1.0/(4*rrsq), ke);
