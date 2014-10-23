@@ -18,28 +18,52 @@ parameter vector.  Some features I didn't use were not reimplemented,
 including the other non-linear limb darkening types, which cannot be
 done using elliptic integrals.
 
-All additions made in the 2011 paper have been carried over, including
-the spot model and the corrections for the "classical" light travel
-time across the system (in the solar system, the effect is called the
-Romer delay).  Reflection was modified to be able to use albedo rather
-than the original EBOP-like reflection parameter if desired.  The
-model can also compute light ratios and radial velocities.
+Most of the additions made in the 2011 paper have been carried over,
+including the spot model and the corrections for the "classical" light
+travel time across the system (in the solar system, the effect is
+called the Romer delay).  Reflection was modified to be able to use
+albedo rather than the original EBOP-like reflection parameter if
+desired.  The model can also compute light ratios and radial
+velocities.
 
-A Python wrapper is provided.  The original Monte Carlo program (in C)
-from the paper will also be provided as an example, once the source
-has been cleaned up (the original is messy and has many dependencies).
+A Python wrapper is provided, and is intended to be the primary way to
+use the model.  The original Monte Carlo program (in C) from the paper
+will also be provided as an example, once the source has been cleaned
+up (the original is messy and has many dependencies).
 
-Dependencies should be minimal, only a C99 compiler should be needed
-to build the light curve generator itself in the directory "src".
-Sorry, I do not plan to support C89, the mathematical functions are
-too limited.  Some x86-specific assembly optimizations are included,
-which need a compiler supporting GNU syntax for inline assembler.  If
-another compiler or architecture is used, these are currently
-disabled.  More assembly language optimizations (particularly of the
-elliptic integrals) are in the works.
+Dependencies
+============
 
-A recent Python 2.x with Numpy is needed to build the Python
-extension.
+Light curve generator (directory src)
+-------------------------------------
+
+Only a C99 compiler should be needed.  Some x86-specific assembly
+optimizations are included, which need a compiler supporting GNU
+syntax for inline assembler.  If another compiler or architecture is
+used, these are currently disabled.  More assembly language
+optimizations (particularly of the elliptic integrals) are in the
+works.
+
+Python module (directory python)
+--------------------------------
+
+Python >= 2.6  (for test program, module may work with earlier versions)
+Numpy  >= 1.4  (advised; earlier versions may work)
+
+Python 3 is not yet supported.
+
+Building
+========
+
+The standard Makefile builds the light curve generator and Python
+module by default when you type "make".
+
+Automatic dependency generation for header files is supported, and
+recommended if you plan to update using git or make modifications.
+Run "make depend" before "make" to get this.
+
+Acknowledgments
+===============
 
 The author gratefully acknowledges the original JKTEBOP and EBOP
 authors John Southworth and Paul B. Etzel.  I have tried to avoid
