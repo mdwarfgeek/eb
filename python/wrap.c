@@ -55,6 +55,12 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
     outarr = PyArray_FROM_OTF(outarg, NPY_DOUBLE, NPY_OUT_ARRAY);
     if(!outarr)
       goto error;
+
+    if(PyArray_Size(outarr) < npt) {
+      PyErr_SetString(PyExc_IndexError,
+                      "'out' vector is too short");
+      goto error;
+    }
   }
   else {
     outarr = PyArray_SimpleNew(PyArray_NDIM(tarr),
