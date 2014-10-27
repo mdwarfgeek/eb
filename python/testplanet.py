@@ -11,8 +11,12 @@
 # This example uses the "phase offset" (really a mean anomaly
 # adjustment) parameter to adjust the time of the eclipse for
 # simplicity.  In practice we would presumably want to determine
-# the ephemeris (P and T0) would fit for those instead of
+# the ephemeris (P and T0) and would fit for those instead of
 # adjusting PHI0.
+#
+# For non-linear least-squares, I have used "lmmin" in pwkit
+# by Peter Williams in this example.  It can be found at:
+#   https://github.com/pkgw/pwkit
 
 import numpy
 import eb
