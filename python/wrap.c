@@ -9,14 +9,17 @@
 #include "eb.h"
 
 static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
-  static char *kwlist[] = { "parm", "t", "typ", "flags", NULL };
-  PyObject *parmarg = NULL, *targ = NULL, *typarg = NULL;
+  static char *kwlist[] = { "parm", "t", "typ",
+                            "flags", "out",
+                            NULL };
+  PyObject *parmarg = NULL, *targ = NULL, *typarg = NULL, *outarg = NULL;
   PyObject *parmarr = NULL, *tarr = NULL, *typarr = NULL, *outarr = NULL;
   int flags = 0, npt;
 
   /* Get arguments */
-  if(!PyArg_ParseTupleAndKeywords(args, keywds, "OOO|i", kwlist,
-                                  &parmarg, &targ, &typarg, &flags))
+  if(!PyArg_ParseTupleAndKeywords(args, keywds, "OOO|iO", kwlist,
+                                  &parmarg, &targ, &typarg,
+                                  &flags, &outarg))
     goto error;
 
   /* Get array arguments */
@@ -47,10 +50,19 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
     goto error;
   }
 
-  /* Get output array */
-  outarr = PyArray_SimpleNew(PyArray_NDIM(tarr), PyArray_DIMS(tarr), NPY_DOUBLE);
-  if(!outarr)
-    goto error;
+  /* Output array */
+  if(outarg) {
+    outarr = PyArray_FROM_OTF(outarg, NPY_DOUBLE, NPY_OUT_ARRAY);
+    if(!outarr)
+      goto error;
+  }
+  else {
+    outarr = PyArray_SimpleNew(PyArray_NDIM(tarr),
+                               PyArray_DIMS(tarr),
+                               NPY_DOUBLE);
+    if(!outarr)
+      goto error;
+  }
 
   /* Compute result */
   eb_model_dbl((double *) PyArray_DATA(parmarr),
@@ -65,7 +77,13 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   Py_DECREF(tarr);
   Py_DECREF(typarr);
 
-  return(PyArray_Return((PyArrayObject *) outarr));
+  if(outarg) {
+    Py_DECREF(outarr);
+    return(Py_None);
+  }
+  else {
+    return(PyArray_Return((PyArrayObject *) outarr));
+  }
 
  error:
   Py_XDECREF(parmarr);
