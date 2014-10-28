@@ -61,7 +61,7 @@ static inline void bright (struct star *s) {
   DATATYPE eps, rb, fmax, fmin;
 
   /* Biaxial ellipsoid dimensions and oblateness.
-     See Chandrasekhar (1933). */
+     See Chandrasekhar (1933) and Binnendijk (1974, VA, 16, 61). */
   eps = 1.5 * s->q * s->rcb / (1.0 + s->rcb * (1.0 + 7*s->q) / 6);
   rb = TCBRT(1.0-eps);
 
@@ -142,8 +142,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
 
   int p, i;
 
-  DATATYPE svwt, shrt;
-  DATATYPE h, hsq;
+  DATATYPE svwt, cpsi, csqpsi, tmp;
   DATATYPE d, dsq;
   DATATYPE rr, rrsq, a, b, asq, bsq;
   DATATYPE eta, lam, kap0, kap1, ksrt;
@@ -320,10 +319,10 @@ void FUNC (double *parm, double *t, unsigned char *typ,
 
   if(!(flags & EB_FLAG_REFL)) {
     /* "refl" is the albedo, so multiply by l(other) (r/a)^2 */
-    shrt = ctid*ctid;
+    csqpsi = ctid*ctid;
 
-    sp.refl *= ss.o * (1.0 - ss.delt * shrt) * sp.rsq;
-    ss.refl *= sp.o * (1.0 - sp.delt * shrt) * ss.rsq;
+    sp.refl *= ss.o * (1.0 - ss.delt * csqpsi) * sp.rsq;
+    ss.refl *= sp.o * (1.0 - sp.delt * csqpsi) * ss.rsq;
   }
   /* otherwise, the original EBOP-alike model is used, this is
      usually better when fitting for reflection. */
@@ -338,10 +337,10 @@ void FUNC (double *parm, double *t, unsigned char *typ,
   for(p = 0; p < npt; p++) {
     if(typ[p] == EB_OBS_AVLR) {
       /* Special call to return avg. light ratio (CHECKME!) */
-      hsq = 0.5*(1.0 + 0.5*ssqi);
+      tmp = 0.5*(1.0 + 0.5*ssqi);
 
-      *out = (ss.o * (1.0 - 0.5*ss.delt*ssqi) * (1.0-ss.oav) + ss.refl*hsq)
-           / (sp.o * (1.0 - 0.5*sp.delt*ssqi) * (1.0-sp.oav) + sp.refl*hsq);
+      *out = (ss.o * (1.0 - 0.5*ss.delt*ssqi) * (1.0-ss.oav) + ss.refl*tmp)
+           / (sp.o * (1.0 - 0.5*sp.delt*ssqi) * (1.0-sp.oav) + sp.refl*tmp);
 
       continue;
     }
@@ -421,11 +420,28 @@ void FUNC (double *parm, double *t, unsigned char *typ,
     /* sin(v+w+atid) */
     svwt = (ctid*svw + stid*cvw) * vnorm;
 
-    /* Base light from each component including shape (ellipsoidal) */
-    shrt = ssqi * svwt*svwt;
+    /* Base light from each component including shape (ellipsoidal).
+       Following Binnendijk (1974, VA, 16, 61), Eq. 17, approximate:
 
-    sp.l = sp.o * (1.0 - sp.delt * shrt);
-    ss.l = ss.o * (1.0 - ss.delt * shrt);
+       L = 1 - 0.5 * e^2 * cos^2 (psi)
+         = 1 - delt * cos^2 (psi)
+
+       where psi is the angle between the line of sight and the
+       binary major axis, and delt is 1 - Lmin/Lmax as calculated
+       above.
+
+       The angle psi is given by Eq. 12:
+
+       cos psi = sin i sin(v+w+atid)
+
+       where we have included the tidal lead/lag term above. */
+
+    /* Eq. 12 squared */
+    csqpsi = ssqi * svwt*svwt;
+
+    /* Eq. 17 */
+    sp.l = sp.o * (1.0 - sp.delt * csqpsi);
+    ss.l = ss.o * (1.0 - ss.delt * csqpsi);
 
     /* Out of eclipse variations due to spots */
     phio = omega * (t[p] - tconj) - dphi;
@@ -446,12 +462,37 @@ void FUNC (double *parm, double *t, unsigned char *typ,
     else
       ss.ol = 0;
 
-    /* Reflection, following EBOP */
-    h = sini * svw * vnorm;
-    hsq = 0.5*(1.0 + h*h);
+    /* Reflection effect using the simple formula from Milne
+       (1926, MNRAS, 87, 43) and Russell (1939, ApJ, 90, 641).
+       The reflected light is:
 
-    sp.rl = sp.refl * (hsq + h);
-    ss.rl = ss.refl * (hsq - h);
+       L(refl)_1 = (1/8) L_2 (R_1/a)^2 (1 + 2 cos psi)^2
+       L(refl)_2 = (1/8) L_1 (R_2/a)^2 (1 - 2 cos psi)^2
+
+       where L_1 and L_2 are the luminosities of the two stars.
+       The direct light to the observer is L/4, so:
+
+       L_1(refl) = (1/2) L_2(direct) (R_1/a)^2 (1 + 2 cos psi)^2
+
+       and similarly for star 2.
+
+       In the default formulation here, the entries in the parameter
+       vector are constants multiplying this expression, i.e. the
+       albedo, where an albedo of unity corresponds to the Milne and
+       Russell formulation.  In EBOP, and here when EB_FLAG_REFL is
+       set, the reflection coefficient also includes the
+       L_1(direct) (R_1/a)^2 and L_2(direct) (R_2/a)^2 factors. */
+
+    /* Cosine of phase angle for reflection = cos psi, this time
+       without tidal lead/lag. */
+    cpsi = sini * svw * vnorm;
+
+    /* (1/2) (1 + cos^2 psi) */
+    tmp = 0.5*(1.0 + cpsi*cpsi);
+
+    /* (1/2) (1 + cos^2 psi +/- 2 cos psi) = (1/2) (1 + cos psi)^2 */
+    sp.rl = sp.refl * (tmp + cpsi);
+    ss.rl = ss.refl * (tmp - cpsi);
 
     /* Total uneclipsed light on each star */
     sp.ltot = sp.l + sp.ol + sp.rl;
