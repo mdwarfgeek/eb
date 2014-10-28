@@ -1,0 +1,588 @@
+"eb" API documentation
+======================
+
+This document primarily describes the C API, but the other language
+bindings have been kept as similar as possible.  Some practical notes
+on fitting real data are also included.
+
+Overview
+========
+
+ #include <eb.h>
+
+ void eb_model_dbl (double *parm, double *t, unsigned char *typ,
+                    double *out, unsigned char *iecl, int flags, int npt);
+ void eb_model_flt (double *parm, double *t, unsigned char *typ,
+                    float *out, unsigned char *iecl, int flags, int npt);
+
+ double eb_phisec (double esinw, double ecosw);
+ void eb_phicont (double esinw, double ecosw, double cosi,
+                  double d, double *phi);
+ void eb_getvder (double *v, double gamma, double ktot, double *vder);
+
+The model itself is in the file eb_model.c and is compiled to separate
+"double" (eb_model_dbl) and "float" (eb_model_flt) versions for double
+and single precision respectively.  Due to some remaining numerical
+issues when doing the calculation in single precision (which I hope to
+fix some day), I suggest always using the "double" version at present.
+
+The remaining three definitions above are utility functions.  These
+are not currently documented in full, but see the examples and
+comments in the source.  There are also some hints in the Python
+docstrings.
+
+The header file src/eb.h contains the definitions of constants for the
+parameter vector entries, flags and computed quantities, and a few
+physical constants used internally for the calculations in eb_getvder.
+
+Model calculation (eb_model_*)
+==============================
+
+Arguments
+---------
+
+parm     Parameter vector, length EB_NPAR (or greater, users are
+         welcome to add their own parameters after the last fixed
+         one).  The entries are defined by the EB_PAR_* constants, see
+         below.
+
+t        Time or phase array.  Length "npt".
+
+typ      Quantity to compute for each time stamp.  Each entry should
+         be one of the EB_OBS_* constants.  Length "npt".
+
+out      Output array.  One model value, as requested in "typ" will be
+         stored here for each time stamp in "t".  Length "npt".
+
+iecl     Boolean flag indicating for each time stamp in "t" if an
+         eclipse was computed (i.e. was there an eclipse underway at
+         time "t"?).  Can be given as a NULL pointer if not needed.
+         Length "npt".
+
+flags    Bitmask of EB_FLAG_* values to set options for the model
+         calculation.  See below.
+
+npt      Number of points in the t, typ, out, iecl arrays.
+
+Parameter vector ("parm")
+-------------------------
+
+I recommend using the #defines in eb.h to refer to elements of the
+parameter vector, rather than hard-coding particular elements.
+However, the first 22 entries were kept in the same positions as in
+JKTEBOP, and are unlikely to change for the same reason.
+
+EB_PAR_J        0
+
+ Central surface brightness ratio (secondary / primary) in the
+ observed passband.  For a circular orbit and no limb darkening,
+ would be equal to the ratio of the eclipse depths, and this is a
+ useful way to think about it provided one bears in mind that this is
+ an approximation.
+
+EB_PAR_RASUM    1
+
+ Sum of the radii divided by semimajor axis, (R_1+R_2)/a.
+
+EB_PAR_RR       2
+
+ Radius radio (secondary / primary), R_2/R_1.
+
+ There are many common misconceptions surrounding this parameter, so
+ please take care.  In particular, it is common to see the
+ approximation that the primary eclipse depth is the radius ratio
+ squared.  This is only true if the secondary is completely dark and
+ the eclipse is total, and is only exact if the primary is a uniformly
+ illuminated disc (i.e. no limb darkening, gravity darkening, spots,
+ etc.).  For a self-luminous secondary and/or a grazing eclipse, this
+ idea is very misleading (see the comments under PAR_J above for a
+ better way to think about the eclipse depths when the secondary is
+ self-luminous).
+
+ A number of cautions apply when fitting grazing eclipses, where this
+ parameter is often not constrained well enough from photometry
+ alone.  It can be so troublesome that I have dedicated an entire
+ section of the document to it below.  Please see under "fitting
+ grazing eclipses".
+
+EB_PAR_LDLIN1   3
+EB_PAR_LDLIN2   4
+
+ Linear limb darkening parameters for star 1 (primary) and star 2
+ (secondary).  See also LDNON* below.  This parameter is often called
+ "u_1" (e.g. transiting planet literature) or "a" (e.g. JKTLD)
+ depending on notation.  I suggest avoiding the numerical suffix such
+ as in "u_1" for eclipsing binaries as it is easily confused with the
+ index used to specify the two stars.
+
+EB_PAR_COSI     5
+
+ Cosine of orbital inclination.  An isotropic prior is uniform in this
+ parameter, which was part of the motivation.  Inclination is defined
+ so edge-on is 90 degrees (a value of zero in cos i).
+
+EB_PAR_ECOSW    6
+EB_PAR_ESINW    7
+
+ Eccentricity multiplied by sin and cos of argument of periastron.
+ This choice of parameters was made partly for convenience (and to
+ some extent, efficiency) in implementation.  Please be aware that
+ adopting uniform priors in these parameters is equivalent to a 
+ linearly increasing prior in eccentricity itself, which is usually
+ not desirable.
+ 
+EB_PAR_GD1      8
+EB_PAR_GD2      9
+
+ Gravity darkening exponent expressed in surface brightness (not
+ effective temperature) for star 1 and star 2.
+
+EB_PAR_REFL1    10
+EB_PAR_REFL2    11
+
+ Reflection coefficient.  The reflection model uses the simple formula
+ from Milne (1926, MNRAS, 87, 43) and Russell (1939, ApJ, 90, 641),
+ following EBOP.
+
+ If EB_FLAG_REFL is not set, this parameter controls the albedo, where
+ the original formula from these authors corresponds to a value of
+ unity.  If EB_FLAG_REFL is set, the parameter behaves as it does in
+ EBOP and JKTEBOP, where it is simply the coefficient multiplying the
+ phase function.  The relationship between the two is:
+
+ refl_1(flag=1) = refl_1(flag=0) l_2 (R_1/a)^2
+
+ and similarly for refl_2, where l_2 is the normalized light from star
+ 2 and R_1/a is the radius of star 1 divided by the semimajor axis.
+
+EB_PAR_Q        12
+
+ Mass ratio (secondary / primary).  This is used only for ellipsoidal
+ variation in the calculation.  Set to zero to disable ellipsoidal.
+
+EB_PAR_TIDANG   13
+
+ Tidal lead/lag angle in degrees.  This parameter (and the weird
+ choice of units) was inherited from the desire to maintain
+ comparibility with EBOP.
+
+EB_PAR_L3       14
+
+ Third light divided by total light, L_3 / (L_1 + L_2 + L_3).  Third
+ light has some fairly nasty degeneracies with other parameters in the
+ model (particularly inclination for grazing geometries and radius
+ ratio for total eclipses), and can be difficult to deal with using
+ photometry alone if there is no external constraint on its value (e.g.
+ from high-resolution imaging or spectroscopy).
+
+EB_PAR_PHI0     15
+
+ Normalized phase (time divided by orbital period, or mean anomaly
+ as fraction of a full circle) adjustment.  This should normally be
+ zero when using the P and T0 parameters, but can be used to adjust
+ eclipse times, e.g. for timing analysis, or to change the definition
+ of T0.
+
+EB_PAR_M0       16
+
+ Magnitude zero-point.  Used only for EB_OBS_MAG output.
+
+EB_PAR_INTEG    17
+
+ Not used.  Retained for compatibility with JKTEBOP.
+
+EB_PAR_P        18
+EB_PAR_T0       19
+
+ Orbital period and epoch of inferior conjunction (this is the
+ "transit convention", not the "radial velocity convention").
+ These quantities must be in the same units as the time array.
+
+EB_PAR_LDNON1   20
+EB_PAR_LDNON2   21
+
+ Quadratic limb darkening parameters for star 1 and star 2.  See also
+ LDLIN* above.  This parameter is often called "u_2" or "b".
+
+EB_PAR_CLTT     22
+
+ Total radial velocity semiamplitude (star 1 + star 2, i.e. K_1 + K_2,
+ the sum of the two semiamplitudes) divided by the speed of light.
+ Used to correct for light travel time across the system (called the
+ Romer delay in the solar system).  Set to zero to disable this
+ correction (which is moderately expensive, it involves computing two
+ extra solutions to a modified Kepler's equation).
+
+EB_PAR_ROT1     23
+EB_PAR_ROT2     24
+
+ Angular frequency of rotation divided by angular frequency of the
+ orbit, for star 1 and star 2.  In other words, if the star rotates at
+ half the angular frequency (twice the period) compared to the orbit,
+ the value of this parameter would be 0.5.
+
+EB_PAR_FSPOT1   25
+EB_PAR_FSPOT2   26
+EB_PAR_OOE1O    27
+EB_PAR_OOE11A   28
+EB_PAR_OOE11B   29
+EB_PAR_OOE12A   30
+EB_PAR_OOE12B   31
+EB_PAR_OOE2O    32
+EB_PAR_OOE21A   33
+EB_PAR_OOE21B   34
+EB_PAR_OOE22A   35
+EB_PAR_OOE22B   36
+
+ Spot model.  The spot model assumes the limit of a large number of
+ very small spots, i.e. a smooth but varying surface brightness
+ distribution.  This is pretty much the opposite of a standard spot
+ model where one or a few large spots may be used (such as in the
+ Wilson-Devinney model).
+
+ The EB_PAR_OOE*A and EB_PAR_OOE*B parameters correspond to a fairly
+ standard model to fit out of eclipse variations.  In the parameter
+ names, the first digit is the star number, and the second digit
+ represents the fundamental (1) or second harmonic (2) respectively.
+ A refers to the coefficient multiplying sin(phase) and B to
+ cos(phase), where the phase is equal to the mean anomaly multiplied
+ by the rotation parameter (this means it includes PHI0).  So
+ EB_PAR_OOE11A and EB_PAR_OOE11B are the coefficients for the
+ fundamental on star 1, etc.
+
+ If EB_PAR_OOE1O and EB_PAR_OOE2O are zero, the out of eclipse
+ modulation is normalized so the maximum corresponds to there being no
+ light decrement due to spots.  The parameters EB_PAR_OOE1O and
+ EB_PAR_OOE2O represent an adjustment to this assumption to allow for
+ a constant level of spots that are uniformly distributed and
+ therefore don't give rise to any modulation.
+
+ This is applied by reducing the surface brightness of the appropriate
+ star by the fractional amount given by the model.  Mathematically:
+
+ L_1(spotted) = L_1(unspotted)
+              * (1 + OOE11A * sin(phi*ROT1) +
+                     OOE11B * cos(phi*ROT2)+
+                     OOE12A * sin(2*phi*ROT1) +
+                     OOE12B * cos(2*phi*ROT2)
+                   - (OOE11O + sqrt(OOE11A^2+OOE11B^2+
+		                    OOE12A^2+OOE12B^2)))
+
+ and similarly for star 2.
+
+ The parameter FSPOT essentially parametrizes the effect of "spot
+ latitude", by controlling how much the surface brightness underneath
+ the occulting star (i.e. the part subtracted off during eclipse) is
+ affected by the spots.  A value of zero means only the light outside
+ the eclipse chord is affected, i.e. the original, "unspotted" surface
+ brightness is used to subtract off the eclipse.  A value of unity
+ corresponds to the more standard assumption that the surface
+ brightness decrement due to spots is uniform across the stellar disc,
+ so the light subtracted off in eclipse is decreased by the same
+ fraction as the total light.  FSPOT=0 is essentially a limiting case
+ for dark spots where the effect of increasing the eclipse depth is
+ maximized.
+
+EB_NPAR         37
+
+ Total length of the parameter vector.
+
+Flags ("flags")
+---------------
+
+The flags entry is a bitmask, i.e. combine these with a bitwise OR
+operation, the | operator in C and C-like languages, "ior" intrinsic
+in Fortran.
+
+EB_FLAG_REFL    1
+
+ EB_PAR_REFL1 and REFL2 are the EBOP reflection parameter, rather
+ than albedo.
+
+EB_FLAG_PHI     2
+
+ Treat the time array as normalized phase, rather than time.  This is
+ how the "light" subroutine in JKTEBOP behaves by default.
+
+Model outputs / "observation types" ("typ")
+-------------------------------------------
+
+This array is used to specify which model output is desired at each
+time stamp.  Arbitrary combinations of these can be requested in a
+single call.
+
+It is not currently possible to retrieve more than one quantity per
+time stamp, except by repeating the time stamps, which is wasteful.
+This was left as-is for now because the only real-life datasets that
+tend to have multiple data types taken at exactly the same times are
+radial velocities, and there are usually not very many of these
+(compared to photometric data points) so performance is less of a
+problem.
+
+EB_OBS_MAG      0
+
+ Magnitude, parm[EB_PAR_M0] - 2.5 * log10(total light).
+
+EB_OBS_LIGHT    1
+
+ Total normalized light (or loosely, "total flux").  This is the same
+ as the quantity "muo1" in the Mandel & Agol routines, for those
+ familiar with them.  Parameter vector entry EB_PAR_M0 is ignored.
+
+EB_OBS_LRAT     2
+
+ Light ratio (secondary / primary).  This quantity is computed at the
+ given time of observation and can be used to fit observed
+ spectroscopic light ratios to constrain the radius ratio.
+
+EB_OBS_AVLR     3
+
+ Orbit averaged version of the previous quantity.  The time array
+ entry is ignored.  In our published analyses, we have usually
+ extracted SB2 radial velocities using TODCOR with a single, fixed
+ light ratio determined from the whole dataset, and this option is
+ intended for fitting these light ratios.
+
+EB_OBS_VRAD1    4
+EB_OBS_VRAD2    5
+
+ "Radial velocity", cos(v+w) + e cos w where v is true anomaly, e is
+ eccentricity and w is argument of periastron.  To get measured radial 
+ velocity, multiply by semiamplitude and add gamma (systemic) velocity.
+
+EB_OBS_PSS      6
+
+ This is the input quantity "z0" for the Mandel & Agol routine and is
+ mostly for testing.  It is the separation on the plane of the sky
+ between the two star centers, divided by the radius of the star that
+ will be eclipsed (the one that is further away).
+
+EB_OBS_A        7
+
+ The internal quantity "a", the plane of sky separation minus radius
+ ratio.  Mostly for testing.
+
+Fitting grazing eclipses
+------------------------
+
+The radius ratio is usually not constrained very well (if at all) by
+photometry alone for systems with a grazing geometry.  In the light
+curve, the effect of the radius ratio is essentially only seen through
+higher order deviations in the eclipse shape, which tend to be very
+prone to contamination from systematics in the photometry and can
+depend on assumptions such as limb darkening coefficients.
+
+For SB2s, this problem is usually solved by including an observed
+spectroscopic light ratio in the model, so the radius ratio can be
+determined.  For most cases involving ground-based data, the
+spectroscopic constraint supplies nearly all of the information on the
+radius ratio.  It may be important to ensure the spectroscopic light
+ratio is measured at, or corrected to, the bandpass of the photometry.
+
+During initial exploratory fitting when only photometry is available,
+I often fix the radius ratio to a theoretical value estimated from
+stellar models until a spectroscopic light ratio is available.
+Otherwise, having an almost completely unconstrained parameter in the
+fit can mess up the non-linear fitting.  I advise against trying to do
+final scientific analysis of grazing eclipsing binaries without the
+spectroscopic constraint.
+
+Caution is advised when trying to estimate uncertainties on the radius
+ratio in grazing systems.  I have had a lot of trouble with the
+uncertainties being underestimated, sometimes due to fitting or Monte
+Carlo getting stuck.  If the system is grazing, be suspicious if this
+parameter comes out with a relative error much less than the square of
+the relative error in the spectroscopic light ratio, unless the data
+are exceptionally good (Kepler?).
+
+A useful additional sanity check learned over the years is the
+observation that while the models tend to underestimate the sum of the
+radii by up to 5-10 percent or so (this is the well known radius
+problem), the radius ratio in near equal mass systems agrees very well
+with the models, particularly in the best-measured systems.  I
+therefore recommend treating a discrepant radius ratio as a sign of a
+problem with the analysis or observations until conclusively
+demonstrated otherwise.
+
+When choosing priors on the radius ratio, please be aware that values
+greater than unity are perfectly reasonable when the geometry is
+grazing.  Placing a boundary at unity is a specific choice of
+informative prior and may not always be justified.
+
+Fitting multi-band data
+-----------------------
+
+It is useful to make the distinction between radiative parameters and
+geometric / orbital parameters for this purpose.  The radiative
+parameters will (in general) need to be different for each observed
+passband, whereas the geometric and orbital parameters are the same.
+Roughly speaking, the division is as follows.
+
+Radiative parameters:
+
+EB_PAR_J
+EB_PAR_LDLIN1
+EB_PAR_LDLIN2
+EB_PAR_GD1
+EB_PAR_GD2
+EB_PAR_REFL1
+EB_PAR_REFL2
+EB_PAR_L3
+EB_PAR_M0
+EB_PAR_LDNON1
+EB_PAR_LDNON2
+EB_PAR_FSPOT1
+EB_PAR_FSPOT2
+EB_PAR_OOE1O
+EB_PAR_OOE11A
+EB_PAR_OOE11B
+EB_PAR_OOE12A
+EB_PAR_OOE12B
+EB_PAR_OOE2O
+EB_PAR_OOE21A
+EB_PAR_OOE21B
+EB_PAR_OOE22A
+EB_PAR_OOE22B
+
+Geometric / orbital parameters:
+
+EB_PAR_RASUM
+EB_PAR_RR
+EB_PAR_COSI
+EB_PAR_ECOSW
+EB_PAR_ESINW
+EB_PAR_Q
+EB_PAR_PHI0
+EB_PAR_P
+EB_PAR_T0
+EB_PAR_CLTT
+EB_PAR_ROT1
+EB_PAR_ROT2
+
+There is not any explicit support for fitting multi-band data in a
+single call to the model.  However, it can be achieved by separate
+calls with different parameter vectors at the cost of a little waste.
+The parameters common to all of the passbands (i.e. the set of
+geometric / orbital parameters in the second list above) can be
+tied together (i.e. only one set of these is needed to describe the
+system itself).  However, the consistency of these parameters
+determined independently from different passbands can be a useful
+validation test.
+
+Use for transit models
+----------------------
+
+While intended for eclipsing binaries, standard transiting planet
+models can also be produced, albeit with some minor inefficiency due
+to the extra calculations that are not used.  To obtain standard
+transiting planet models, i.e. a dark secondary, no ellipsoidal or
+reflection, and no light travel correction, set the following
+parameter vector entries to zero:
+
+EB_PAR_J
+EB_PAR_LDLIN2
+EB_PAR_REFL1
+EB_PAR_REFL2
+EB_PAR_Q
+EB_PAR_LDNON2
+EB_PAR_CLTT
+
+It is not currently possible to pass in the same "z0" (plane of sky
+separation) vector as Mandel & Agol.  This is not necessarily a
+disadvantage, the solution of Kepler's equation comes for free.
+
+Derived parameter vector ("vder")
+---------------------------------
+
+This is computed from the standard parameter vector by the utility
+routine "eb_getvder".  This is intended for SB2s only.
+
+EB_PAR_I        0
+
+ Orbital inclination in degrees.
+
+EB_PAR_R1A      1
+EB_PAR_R2A      2
+
+ Radii divided by semimajor axis, R_1/a and R_2/a.
+
+EB_PAR_E        3
+
+ Orbital eccentricity.
+
+EB_PAR_OMEGA    4
+
+ Argument of periastron, in degrees.
+
+EB_PAR_A        5
+
+ Semimajor axis, in *solar radii*.
+
+EB_PAR_MTOT     6
+
+ Total mass (primary + secondary), in solar masses.
+
+EB_PAR_M1       7
+EB_PAR_M2       8
+
+ Individual star masses (in solar masses).
+
+EB_PAR_RTOT     9
+
+ Sum of radii (primary + secondary), in solar radii.  Note that this
+ parameter is often much better constrained than the individual radii
+ in grazing systems, and can be used for comparison to models by
+ looking up the individual radii using the individual masses from
+ above (which usually are well-constrained) and summing them.  See
+ Irwin et al. (2011) on LSPM J1112+7626 for an example where this was
+ done.
+
+EB_PAR_R1       10
+EB_PAR_R2       11
+
+ Individual radii for primary and secondary, in solar radii.  These
+ may be strongly correlated with each other in the (usual) case where
+ the radius ratio is not as well constrained as the sum.
+
+EB_PAR_LOGG1    12
+EB_PAR_LOGG2    13
+
+ Logarithm (base 10) of surface gravity (in cgs units) for each star.
+ This is the usual "log g" parameter, but should really be written
+ log10(g / cm s^-2).
+
+EB_PAR_VSYNC1   14
+EB_PAR_VSYNC2   15
+
+ Synchronous rotational velocity for each star, in km/s.  This is the
+ rotation velocity the star would have if the spin was synchronous
+ with the orbit.  Note that this is not v sin i, the projected
+ velocity, because the inclination of the stellar spin axis is not
+ known in general (it is not necessarily aligned with the orbital
+ angular momentum vector, although this is commonly assumed,
+ especially in short period systems).
+
+EB_PAR_TSYNC    16
+EB_PAR_TCIRC    17
+
+ Synchronization and circularization timescales using the formulae of
+ Zahn (1977) for stars with convective envelopes, in Gyr.  Probably
+ has substantial uncertainties.
+
+EB_PAR_TSEC     18
+
+ Time of first secondary eclipse after T_0.  Same units as P and T0.
+
+EB_PAR_DURPRI   19
+EB_PAR_DURSEC   20
+
+ Durations of primary and secondary eclipse.  Units of P times 24,
+ i.e. hours, assuming P is in days.  I encourage authors to report
+ these quantities in their publications, it's a pain in the neck to
+ have to compute it (or worse, e.g. eyeball off a figure in phase
+ units) just to know how long to observe for.
+
+EB_NDER         21
+
+ Total length of the derived parameter vector.
+

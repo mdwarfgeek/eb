@@ -26,6 +26,9 @@ use the model.  The original Monte Carlo program (in C) from the paper
 will also be provided as an example, once the source has been cleaned
 up (the original is messy and has many dependencies).
 
+The file API.txt describes how to use the light curve generator, and
+gives the meanings of the parameters.
+
 Dependencies
 ============
 
