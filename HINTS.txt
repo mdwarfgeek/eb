@@ -1,0 +1,275 @@
+"eb" hints
+==========
+
+Fitting
+-------
+
+It is important to realise that not all of the parameters in the
+"parm" vector are intended to be varied at once.  Indeed, one of them
+does not do anything at all (INTEG) and two are degenerate because
+they provide different ways to do the same thing (PHI0 and T0).
+
+This section provides a brief overview of what is "typically" done
+with the parameters for eclipsing binaries.  None of this is set in
+stone, and particularly innovative analysis might allow some of the
+common sources of uncertainties to be better accounted for in the
+future.
+
+Roughly speaking, in a double-lined, double-eclipsing binary solution
+for the usual case of ground-based data in a single passband, the
+following parameters would usually be fit from the light curves (and
+an observed light ratio from spectroscopy in the case of grazing
+eclipses, see below):
+
+EB_PAR_J
+EB_PAR_RASUM
+EB_PAR_RR
+EB_PAR_COSI
+EB_PAR_M0
+
+The following parameters describe the ephemeris, and are usually also
+fit predominantly from the light curves, but need good initial guesses
+(usually determined from times of minima, or box-fitting least-squares
+analysis):
+
+EB_PAR_P
+EB_PAR_T0
+
+If the orbit is eccentric (or not be assumed to be circular), the
+following would also be fit:
+
+EB_PAR_ECOSW
+EB_PAR_ESINW
+
+the light curves tend to provide nearly all of the information on
+ECOSW from the relative timing of primary and secondary eclipse, but
+ESINW can benefit greatly from a simultaneous solution of the
+photometry and radial velocities.  Again, a good initial guess for
+ECOSW is usually needed if the orbit is eccentric.
+
+The values of the limb darkening (LDLIN*, LDNON*) and gravity
+darkening coefficients (GD*) are usually fixed to theoretical values
+(there tends to be little information on limb darkening in grazing
+eclipses).  The reflection effect (REFL*) may be fit if there is any
+information on it in the light curve.  This is usually possible for
+one star only.  However, for most systems I work on (M-dwarfs, usually
+with spots) it is very small and buried underneath much larger spot
+modulations, and I tend to simply predict an approximate reflection
+effect based on an assumed albedo.  The mass ratio (Q) comes from the
+spectroscopic orbit, as does CLTT.
+
+I haven't needed to touch TIDANG, most of my systems have not had
+strong ellipsoidal variations.
+
+PHI0 is usually fixed to zero when fitting for an ephemeris (P and T0).
+
+Third light can be varied, but not always fit, because it has strong
+degeneracies with other parameters.  I have tended to use discrete,
+fixed values of it to gauge the effect of a certain quantity of
+(often unknown) third light on the other parameters.  If an external
+constraint on its value (e.g. from a third set of lines in spectra) is
+available, this might be used to set L3 or a prior on it.
+
+The spot model (ROT*, FSPOT*, OOE*) deserves some special mention for
+systems where it is needed.  In most cases, only one modulation is
+seen, so we have to make a choice about which star to assign it to,
+which of course is usually not known (I recommend covering all
+possibilities because they have different effects on the radii).
+
+The rotation parameters (ROT*) can cause trouble to minimizers, so I
+set the initial guess based on a standard periodogram analysis so the
+minimizer doesn't have to do too much work.  For very short period
+systems expected to be synchronized these might be fixed to 1.
+
+The FSPOT and OOE*O parameters are not intended to be fit from the
+data, there is usually no information in the light curve on them,
+however they do influence the results, so their effect should be
+considered carefully.  See Irwin et al. (2011) for an example of how
+these were used.
+
+The remaining parameters describe the sin + harmonic model and are fit
+from the light curves (for the chosen star only, in most cases, unless
+somebody comes up with a clever way to allow for the uncertainty in
+which star is responsible for the modulations).
+
+Notes on individual parameters
+------------------------------
+
+Central surface brightness ratio (J) / radius ratio (RR) and relation
+to the eclipse depths.
+
+ I have come across many misconceptions surrounding this, so please
+ take care.  In particular, it is common (particularly for transiting
+ planets) to see the approximation that the primary eclipse depth is
+ the radius ratio squared.  This is only true if the secondary is
+ completely dark and the eclipse is total, and is only exact if the
+ primary is a uniformly illuminated disc (i.e. no limb darkening,
+ gravity darkening, spots, etc.).  For a self-luminous secondary
+ and/or a grazing eclipse, this idea can be very misleading.
+
+ For systems of two self-luminous objects, particularly if the
+ eclipses are grazing, a better way to think about the eclipse depths
+ is that the ratio of the secondary eclipse depth to the primary
+ eclipse depth is a measure of the surface brightness ratio (strictly
+ speaking, under the eclipse chord), so is most closely related to
+ the central surface brightness ratio parameter J.  Bolometric surface
+ brightness is directly related to effective temperature by sigma
+ Teff^4 where sigma is the Stefan-Boltzmann constant, so in a crude
+ sense J is also related to the effective temperature ratio between
+ the two stars, although note that bolometric corrections are
+ important when interpreting real data.
+
+Third light (L3)
+
+ Third light can have some fairly nasty degeneracies with other
+ parameters in the model (particularly inclination for grazing
+ geometries and radius ratio for total eclipses), and can be difficult
+ to deal with using photometry alone if there is no external
+ constraint on its value (e.g. from high-resolution imaging or
+ spectroscopy).
+
+Fitting grazing eclipses
+------------------------
+
+A number of cautions apply, particularly to the radius ratio, when
+fitting grazing eclipses.
+
+The radius ratio is usually not constrained very well (if at all) by
+photometry alone for systems with components of nearly equal sizes and
+a grazing geometry.  In the light curve, the effect of the radius
+ratio is essentially only seen through higher order deviations in the
+eclipse shape, which tend to be prone to contamination from
+systematics in the photometry and can depend on assumptions such as
+limb darkening coefficients.
+
+For SB2s, this problem is usually solved by including an observed
+spectroscopic light ratio in the model, so the radius ratio can be
+determined.  For most cases involving ground-based data, the
+spectroscopic constraint supplies nearly all of the information on the
+radius ratio.  It may be important to ensure the spectroscopic light
+ratio is measured at, or corrected to, the bandpass of the photometry.
+
+During initial exploratory fitting when only photometry is available,
+I often fix the radius ratio to a theoretical value estimated from
+stellar models until a spectroscopic light ratio is available.
+Otherwise, having an almost completely unconstrained parameter in the
+fit can mess up the non-linear fitting.  I advise against trying to do
+final scientific analysis of this type of grazing eclipsing binaries
+without the spectroscopic constraint.
+
+Caution is advised when trying to estimate uncertainties on the radius
+ratio in grazing systems.  I have had a lot of trouble with the
+uncertainties being underestimated, sometimes due to fitting or Monte
+Carlo getting stuck.  If the system is grazing, I would be suspicious
+if this parameter comes out with a relative error much less than the
+square of the relative error in the spectroscopic light ratio, unless
+the data are exceptionally good (Kepler?).
+
+A useful additional sanity check is the observation that while the
+models tend to underestimate the sum of the radii by up to 5-10
+percent or so (this is the well known radius problem), the radius
+ratio in near equal mass systems agrees very well with the models,
+particularly in the best-measured systems.  Therefore a discrepant
+ratios ratio may be a sign of a problem with the analysis (or
+observations).
+
+As a related aside, the sum of the radii is often much better
+constrained than the individual radii in grazing systems as a result
+of the problems with the radius ratio.  It can be used directly for
+comparison to models, by looking up the individual radii using the
+individual masses from the spectroscopic orbit, summing the model
+radii, and then comparing this quantity to the observed radius sum.
+Of course, errors in the masses should be propagated carefully into
+the model radii being compared when doing this.  For objects with
+high-quality spectroscopic orbits, this can yield more constraining
+results than attempting to compare the individual component radii
+only.  See Irwin et al. (2011) on LSPM J1112+7626 for an example where
+this was done.
+
+When choosing priors on the radius ratio, please beware that values
+greater than unity are perfectly reasonable when the geometry is
+grazing.  Placing a boundary at unity is a specific choice of
+informative prior and may not always be justified.
+
+Fitting multi-band data
+-----------------------
+
+It is useful to make the distinction between radiative / photometric
+parameters and geometric / orbital parameters for this purpose.  The
+former set of parameters will (in general) need to be different for
+each observed passband, whereas the geometric and orbital parameters
+are the same.  Roughly speaking, the division is as follows.
+
+Radiative / photometric parameters:
+
+EB_PAR_J
+EB_PAR_LDLIN1
+EB_PAR_LDLIN2
+EB_PAR_GD1
+EB_PAR_GD2
+EB_PAR_REFL1
+EB_PAR_REFL2
+EB_PAR_L3
+EB_PAR_M0
+EB_PAR_LDNON1
+EB_PAR_LDNON2
+EB_PAR_FSPOT1
+EB_PAR_FSPOT2
+EB_PAR_OOE1O
+EB_PAR_OOE11A
+EB_PAR_OOE11B
+EB_PAR_OOE12A
+EB_PAR_OOE12B
+EB_PAR_OOE2O
+EB_PAR_OOE21A
+EB_PAR_OOE21B
+EB_PAR_OOE22A
+EB_PAR_OOE22B
+
+Geometric / orbital parameters:
+
+EB_PAR_RASUM
+EB_PAR_RR
+EB_PAR_COSI
+EB_PAR_ECOSW
+EB_PAR_ESINW
+EB_PAR_Q
+EB_PAR_PHI0
+EB_PAR_P
+EB_PAR_T0
+EB_PAR_CLTT
+EB_PAR_ROT1
+EB_PAR_ROT2
+
+There is not any explicit support for fitting multi-band data in a
+single call to the model.  However, it can be achieved by separate
+calls with different parameter vectors at the cost of a little waste.
+The parameters common to all of the passbands (i.e. the set of
+geometric / orbital parameters in the second list above) can be
+tied together (i.e. only one set of these is needed to describe the
+system itself).  However, the consistency of these parameters
+determined independently from different passbands can be a useful
+validation test.
+
+Use for transit models
+----------------------
+
+While intended for eclipsing binaries, standard transiting planet
+models can also be produced, albeit with some minor inefficiency due
+to the extra calculations that are not used.  To obtain standard
+transiting planet models, i.e. a dark secondary, no ellipsoidal or
+reflection, and no light travel correction, set the following
+parameter vector entries to zero:
+
+EB_PAR_J
+EB_PAR_LDLIN2
+EB_PAR_REFL1
+EB_PAR_REFL2
+EB_PAR_Q
+EB_PAR_LDNON2
+EB_PAR_CLTT
+
+It is not currently possible to pass in the same "z0" (plane of sky
+separation) vector as Mandel & Agol.  This is not necessarily a
+disadvantage, the solution of Kepler's equation comes for free.
+

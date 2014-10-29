@@ -4,8 +4,8 @@ eb
 A bare bones implementation of a model for well-detached eclipsing
 binaries.  The model is essentially a reimplementation of the light
 curve generator used in Irwin et al. (2011) on LSPM J1112+7626, which
-was based on software by Southworth et al. (2004 - 2009) and Etzel
-(1981).
+was a modified version of the Fortran subroutine "light" by Southworth
+et al. (2004 - 2009) and Etzel (1981).
 
 The light curve generator has been rewritten in C, using the analytic
 method of Mandel & Agol (2002) for the quadratic limb darkening law.
@@ -27,7 +27,11 @@ will also be provided as an example, once the source has been cleaned
 up (the original is messy and has many dependencies).
 
 The file API.txt describes how to use the light curve generator, and
-gives the meanings of the parameters.
+gives the meanings of the parameters.  Some practical notes on fitting
+real data intended to assist less experienced researchers are also
+included in the file HINTS.txt.  Note that these documents are not an
+introductory text on eclipsing binary models, and it is assumed the
+reader is already familiar with this class of model.
 
 Dependencies
 ============
