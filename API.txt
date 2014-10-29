@@ -360,7 +360,7 @@ void eb_phicont (double esinw, double ecosw, double cosi,
  points when the separation of the two stars in the plane of the sky
  divided by the semimajor axis is equal to "d".  For computing the
  first and last contact points for the eclipses, "d" should be set to
- (R_1+R_2/a), the parameter RASUM.  If there is no eclipse, the phases
+ (R_1+R_2)/a, the parameter RASUM.  If there is no eclipse, the phases
  of the conjunctions are returned instead, so this condition can be
  detected by checking if the duration is zero.
 
@@ -384,10 +384,10 @@ void eb_getvder (double *parm, double gamma, double ktot,
 
  NOTE: for precise work, it is important to ensure consistent values
  are used for the physical constants throughout the analysis.  The
- values used by this routine are exposed in the module as constants
- GMSUN, AU, LIGHT and RSUN in MKS units and are the IAU 2009
- TDB-compatible values for GMSUN and AU, and RSUN from Brown &
- Christensen-Dalsgaard 1998 (as adopted by Cox 2000 in Allen's
+ values used by this routine are exposed in the <eb.h> header file as
+ constants EB_GMSUN, EB_AU, EB_LIGHT and EB_RSUN in MKS units and are
+ the IAU 2009 TDB-compatible values for GMSUN and AU, and RSUN from
+ Brown & Christensen-Dalsgaard 1998 (as adopted by Cox 2000 in Allen's
  Astrophysical Quantities, 4th Ed.).
 
 Derived parameter vector ("vder")
