@@ -258,8 +258,7 @@ While intended for eclipsing binaries, standard transiting planet
 models can also be produced, albeit with some minor inefficiency due
 to the extra calculations that are not used.  To obtain standard
 transiting planet models, i.e. a dark secondary, no ellipsoidal or
-reflection, and no light travel correction, set the following
-parameter vector entries to zero:
+reflection, set the following parameter vector entries to zero:
 
 EB_PAR_J
 EB_PAR_LDLIN2
@@ -267,7 +266,30 @@ EB_PAR_REFL1
 EB_PAR_REFL2
 EB_PAR_Q
 EB_PAR_LDNON2
-EB_PAR_CLTT
+
+Light travel time is also usually neglected in transiting planet
+analysis, although I suspect this is simply because it hasn't been
+large enough to notice yet.  Allowing for it introduces a small offset
+into the epochs of conjunction because the transit signal is emitted
+at the position of the planet, which is closer to the observer than
+the star and the system barycenter.  When the light travel correction
+is enabled, the epoch of conjunction is reckoned as if it was being
+communicated to the observer by a light signal emitted at the system
+barycenter (for very small mass ratios, this is essentially how it
+would be defined in radial velocities, i.e. from light emitted at the
+star).  Therefore for compatibility with existing analysis the user
+may wish or need to set EB_PAR_CLTT to zero, or adjust T0 to remove
+the light travel time correction so it agrees with convention.
+
+Note that neglecting light travel time can yield "false eccentricity",
+which appears as a small contribution to e cos omega, when using
+secondary vs primary eclipse timings.
+
+In theory (with the caveat that I have not tried it), secondary
+eclipses might be fit by varying EB_PAR_J, which essentially controls
+the depth of secondary eclipse (relative to primary, approximately
+speaking).  The reflection model is probably not applicable to
+planetary phase curves, because it assumes no heat redistribution.
 
 It is not currently possible to pass in the same "z0" (plane of sky
 separation) vector as Mandel & Agol.  This is not necessarily a

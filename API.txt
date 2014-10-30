@@ -185,10 +185,16 @@ EB_PAR_CLTT     22
 
  Total radial velocity semiamplitude (star 1 + star 2, i.e. K_1 + K_2,
  the sum of the two semiamplitudes) divided by the speed of light.
+
  Used to correct for light travel time across the system (called the
  Romer delay in the solar system).  Set to zero to disable this
  correction (which is moderately expensive, it involves computing two
  extra solutions to a modified Kepler's equation).
+
+ When light travel time corrections are enabled, time-dependent
+ quantities in the parameter vector (particularly T0) are reckoned as
+ if they were communicated to the observer by a light signal emitted
+ from the system barycenter.
 
 EB_PAR_ROT1     23
 EB_PAR_ROT2     24
