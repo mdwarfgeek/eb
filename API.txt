@@ -55,6 +55,14 @@ ol2      Length "npt".  The light of the appropriate star is increased
          pointer if not needed.  This is combined with the built-in
          (sinusoid + constant) spot model.  See below.
 
+         Please take care with the normalization, the model will
+         happily accept complete nonsense in these arrays!  For dark
+         spots, it's best to think of this as a [-1,0] quantity, where
+         -1 means the star goes completely dark, and 0 means nothing
+         happens.  If in doubt, see equations below for the sinusoid,
+         which can be used (and the new external implementation
+         compared with the internal) as an example/test.
+
 typ      Quantity to compute for each time stamp.  Each entry should
          be one of the EB_OBS_* constants.  Length "npt".
 
