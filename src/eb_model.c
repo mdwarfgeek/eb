@@ -328,10 +328,15 @@ void FUNC (double *parm, double *t, unsigned char *typ,
      usually better when fitting for reflection. */
 
   /* Average OOE light */
-  sp.oav = sp.ob + TSQRT(sp.oa1*sp.oa1 + sp.ob1*sp.ob1 +
-                         sp.oa2*sp.oa2 + sp.ob2*sp.ob2);
-  ss.oav = ss.ob + TSQRT(ss.oa1*ss.oa1 + ss.ob1*ss.ob1 +
-                         ss.oa2*ss.oa2 + ss.ob2*ss.ob2);
+  sp.oav = sp.ob;
+  ss.oav = ss.ob;
+
+  if(sp.rot)
+    sp.oav += TSQRT(sp.oa1*sp.oa1 + sp.ob1*sp.ob1 +
+                    sp.oa2*sp.oa2 + sp.ob2*sp.ob2);
+  if(ss.rot)
+    ss.oav += TSQRT(ss.oa1*ss.oa1 + ss.ob1*ss.ob1 +
+                    ss.oa2*ss.oa2 + ss.ob2*ss.ob2);
 
   /* Loop over light curve points */
   for(p = 0; p < npt; p++) {
@@ -452,7 +457,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
                     2*sp.oa2*so*co + sp.ob2*(co+so)*(co-so) - sp.oav);
     }
     else
-      sp.ol = 0;
+      sp.ol = -sp.l * sp.oav;
 
     if(ss.rot) {
       inline_sincos(phio * ss.rot, so, co);
@@ -460,7 +465,7 @@ void FUNC (double *parm, double *t, unsigned char *typ,
                     2*ss.oa2*so*co + ss.ob2*(co+so)*(co-so) - ss.oav);
     }
     else
-      ss.ol = 0;
+      ss.ol = -ss.l * ss.oav;
 
     /* Reflection effect using the simple formula from Milne
        (1926, MNRAS, 87, 43) and Russell (1939, ApJ, 90, 641).

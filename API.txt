@@ -204,6 +204,10 @@ EB_PAR_ROT2     24
  half the angular frequency (twice the period) compared to the orbit,
  the value of this parameter would be 0.5.
 
+ Set to zero to disable out of eclipse modulation (this is slightly
+ faster than simply setting the amplitude to zero).  Note that the
+ "static" spot component specified by EB_PAR_OOE*O is still included.
+
 EB_PAR_FSPOT1   25
 EB_PAR_FSPOT2   26
 EB_PAR_OOE1O    27
