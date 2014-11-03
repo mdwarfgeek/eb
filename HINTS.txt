@@ -92,6 +92,14 @@ from the light curves (for the chosen star only, in most cases, unless
 somebody comes up with a clever way to allow for the uncertainty in
 which star is responsible for the modulations).
 
+An alterative to the "built-in" spot model is also available.  The
+"ol1" and "ol2" parameters allow arbitrary user-supplied time-series
+to be used for the fractional light adjustment to the two stars due to
+spots.  This is combined with the "built-in" spot model, but is really
+intended to be used to replace it, by setting the appropriate
+parameters (ROT*, OOE*) to zero.  The FSPOT parameters are still
+needed, and behave as described above.
+
 Notes on individual parameters
 ------------------------------
 

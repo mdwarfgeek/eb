@@ -123,8 +123,9 @@ static inline void ltt (double cltt,
   *cvw = (ce-ecc)*cosw - se*sinw*roe;
 }
 
-void FUNC (double *parm, double *t, unsigned char *typ,
-           DATATYPE *out, unsigned char *ieclout, int flags, int npt) {
+void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
+           unsigned char *typ, DATATYPE *out, unsigned char *ieclout,
+           int flags, int npt) {
   struct star sp, ss, *s;
 
   double ecosw, esinw, tconj, period, dphi;
@@ -453,19 +454,29 @@ void FUNC (double *parm, double *t, unsigned char *typ,
 
     if(sp.rot) {
       inline_sincos(phio * sp.rot, so, co);
-      sp.ol = sp.l*(sp.oa1*so + sp.ob1*co +
-                    2*sp.oa2*so*co + sp.ob2*(co+so)*(co-so) - sp.oav);
+      sp.ol = (sp.oa1*so + sp.ob1*co +
+               2*sp.oa2*so*co + sp.ob2*(co+so)*(co-so) - sp.oav);
     }
     else
-      sp.ol = -sp.l * sp.oav;
+      sp.ol = -sp.oav;
+
+    if(ol1)
+      sp.ol += ol1[p];
+
+    sp.ol *= sp.l;
 
     if(ss.rot) {
       inline_sincos(phio * ss.rot, so, co);
-      ss.ol = ss.l*(ss.oa1*so + ss.ob1*co +
-                    2*ss.oa2*so*co + ss.ob2*(co+so)*(co-so) - ss.oav);
+      ss.ol = (ss.oa1*so + ss.ob1*co +
+               2*ss.oa2*so*co + ss.ob2*(co+so)*(co-so) - ss.oav);
     }
     else
-      ss.ol = -ss.l * ss.oav;
+      ss.ol = -ss.oav;
+
+    if(ol2)
+      ss.ol += ol2[p];
+
+    ss.ol *= ss.l;
 
     /* Reflection effect using the simple formula from Milne
        (1926, MNRAS, 87, 43) and Russell (1939, ApJ, 90, 641).

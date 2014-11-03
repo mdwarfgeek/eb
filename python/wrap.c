@@ -10,16 +10,22 @@
 
 static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   static char *kwlist[] = { "parm", "t", "typ",
-                            "flags", "out",
+                            "flags", "out", "ol1", "ol2",
                             NULL };
-  PyObject *parmarg = NULL, *targ = NULL, *typarg = NULL, *outarg = NULL;
-  PyObject *parmarr = NULL, *tarr = NULL, *typarr = NULL, *outarr = NULL;
+  PyObject *parmarg = NULL, *targ = NULL, *typarg = NULL;
+  PyObject *parmarr = NULL, *tarr = NULL, *typarr = NULL;
+
+  PyObject *outarg = NULL, *ol1arg = NULL, *ol2arg = NULL;
+  PyObject *outarr = NULL, *ol1arr = NULL, *ol2arr = NULL;
+  
+  double *ol1 = NULL, *ol2 = NULL;
+
   int flags = 0, npt;
 
   /* Get arguments */
-  if(!PyArg_ParseTupleAndKeywords(args, keywds, "OOO|iO", kwlist,
+  if(!PyArg_ParseTupleAndKeywords(args, keywds, "OOO|iOOO", kwlist,
                                   &parmarg, &targ, &typarg,
-                                  &flags, &outarg))
+                                  &flags, &outarg, &ol1arg, &ol2arg))
     goto error;
 
   /* Get array arguments */
@@ -50,6 +56,35 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
     goto error;
   }
 
+  /* Optional arguments */
+  if(ol1arg) {
+    ol1arr = PyArray_FROM_OTF(ol1arg, NPY_DOUBLE, NPY_IN_ARRAY | NPY_FORCECAST);
+    if(!ol1arr)
+      goto error;
+
+    if(PyArray_Size(ol1arr) < npt) {
+      PyErr_SetString(PyExc_IndexError,
+                      "'ol1' vector is too short");
+      goto error;
+    }
+
+    ol1 = (double *) PyArray_DATA(ol1arr);
+  }
+
+  if(ol2arg) {
+    ol2arr = PyArray_FROM_OTF(ol2arg, NPY_DOUBLE, NPY_IN_ARRAY | NPY_FORCECAST);
+    if(!ol2arr)
+      goto error;
+
+    if(PyArray_Size(ol2arr) < npt) {
+      PyErr_SetString(PyExc_IndexError,
+                      "'ol2' vector is too short");
+      goto error;
+    }
+
+    ol2 = (double *) PyArray_DATA(ol2arr);
+  }
+
   /* Output array */
   if(outarg) {
     outarr = PyArray_FROM_OTF(outarg, NPY_DOUBLE, NPY_OUT_ARRAY);
@@ -73,6 +108,7 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   /* Compute result */
   eb_model_dbl((double *) PyArray_DATA(parmarr),
                (double *) PyArray_DATA(tarr),
+               ol1, ol2,
                (uint8_t *) PyArray_DATA(typarr),
                (double *) PyArray_DATA(outarr),
                NULL,
@@ -82,6 +118,13 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   Py_DECREF(parmarr);
   Py_DECREF(tarr);
   Py_DECREF(typarr);
+
+  if(ol1arg) {
+    Py_DECREF(ol1arr);
+  }
+  if(ol2arg) {
+    Py_DECREF(ol2arr);
+  }
 
   if(outarg) {
     Py_DECREF(outarr);
@@ -95,6 +138,8 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   Py_XDECREF(parmarr);
   Py_XDECREF(tarr);
   Py_XDECREF(typarr);
+  Py_XDECREF(ol1arr);
+  Py_XDECREF(ol2arr);
   PyArray_XDECREF_ERR((PyArrayObject *) outarr);
 
   return(NULL);
@@ -275,7 +320,10 @@ static PyMethodDef eb_methods[] = {
     "t     -- double array of times at which to compute the model.\n"
     "typ   -- uint8  quantity (OBS_*) to compute for each time.\n\n"
     "Optional arguments:\n"
-    "flags -- integer bitmask of FLAG_* values.\n\n"
+    "flags -- integer bitmask of FLAG_* values.\n"
+    "out   -- store model in user-supplied double array.\n"
+    "ol1   -- fractional adjustment to light of star 1.\n"
+    "ol2   -- fractional adjustment to light of star 2.\n\n"
     "Arguments t and typ must be the same shape, and for best\n"
     "performance these arrays should use contiguous storage.\n"
     "Returned array y will be the same shape as t and contains\n"
