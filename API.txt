@@ -237,8 +237,8 @@ EB_PAR_OOE22B   36
  modulation is normalized so the maximum corresponds to there being no
  light decrement due to spots.  The parameters EB_PAR_OOE1O and
  EB_PAR_OOE2O represent an adjustment to this assumption to allow for
- a constant level of spots that are uniformly distributed and
- therefore don't give rise to any modulation.
+ a constant level of spots that are uniformly distributed in longitude
+ and therefore don't give rise to any modulation.
 
  This is applied by reducing the surface brightness of the appropriate
  star by the fractional amount given by the model.  Mathematically:
