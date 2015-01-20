@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# This little trick allows me to put comments, the
+# shell won't allow them after a \ line continuation.
+# Plot output saved into "runme.ps".
+
+(
+    cmd=""
+    while read arg; do
+	cleaned=`echo "$arg" | sed -e 's/\#.*$//' -e 's/^[[:space:]]*//g' -e 's/[[:space:]]*$//g'`  # remove comments and whitespace
+	if [ "x$cleaned" != "x" ]; then  # make sure not blank
+	    if [ "x$cmd" != "x" ]; then  # this avoids a leading space
+                cmd="$cmd $cleaned"
+	    else
+	        cmd="$cleaned"
+            fi
+	fi
+    done
+    echo "Executing: $cmd"  # to see what it did!
+    $cmd <<EOP
+runme.ps/cps
+EOP
+) <<"EOD"
+# This is the actual command
+../ebmc
+-f I\\dMEarth\\u,V                # pgplot markup for filter names in plots
+-k 5                              # 5-sigma clip
+#-m mc-spot1                      # do MC, output to mc-spot1* (DISABLED)
+#-l mc-spot1                      # load MC output from mc-spot1 (DISABLED)
+-n 2000000                        # default no. MC sims
+-O                                # "old" light curve file format
+pset-spot1                        # parameter file
+gj3236-iz-20090102.lc,err         # input file LC band 1 (MEarth)
+lc1=gj3236-V-5pix.lc,err          # input file LC band 2 (V 48")
+rv1=gj3236.ha.rv1,err=1.3,wt      # input files RV
+rv2=gj3236.ha.rv2,err=1.9,wt  
+lrat=gj3236.lrat                  # spectroscopic light ratio
+EOD
+

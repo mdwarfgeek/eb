@@ -1,0 +1,151 @@
+Adaptive Metropolis based EB fitting / Monte Carlo
+==================================================
+
+This program is a modified version of the one used for the Irwin et
+al. (2011) paper on LSPM J1112+7626, adapted to the new light curve
+generator and with a few unneeded bells and whistles removed.  It is
+not really intended to be used as-is, but rather as a source of ideas
+and implementation hints to borrow from.
+
+A couple of real test data-sets are included:
+
+example1112        The first "non-eclipsed spots on star 1" case from
+                   the LSPM J1112+7626 paper, see table 6 and surrounding
+                   discussion.
+
+                   The model has evolved quite substantially since the
+		   original version used in the paper, so it cannot
+		   exactly reproduce the results.
+
+example3236        GJ3236 (Irwin et al. 2009), I and V band only.  The
+                   V-band illustrates one of the current limitations,
+                   the out of eclipse model is the same across all
+                   passbands so doesn't fit the V very well, where the
+                   amplitude is expected to be larger.
+
+Both of these come with some shell scripts called "runme" to build the
+"ebmc" command lines.  They are set up to just run the
+Levenberg-Marquardt and stop, see inside for how to use the Monte
+Carlo.
+
+Some notes on how to use it:
+
+The program takes some arcane syntax command-line specifications of
+the input and output files.  The parameter inputs are in ascii files.
+"modes" 0, 1, 2 for the parameters are as follows.  0: hold the
+parameter fixed, 1: vary it in the L-M fit and the Monte Carlo, 2:
+hold it fixed in the L-M but vary it in the Monte Carlo.  Some
+parameters accept -1 to compute the value from other quantities in the
+problem (a particular example is "cltt", the light travel time
+constant).  "2" doesn't always work very well because the covariance
+matrix isn't properly populated (by the L-M) for these parameters
+before the Monte Carlo starts, which can confuse it (see below).
+
+The default setup is to just run a Levenberg-Marquardt and plot the
+answers.  My full plotter is included, the first lot are really for
+diagnostics, and the last lot were the ones used in the paper.
+
+The -m runs the Monte Carlo simulations.  It is mandatory to give it
+an output file to write the simulation output (can be very large, the
+2x10^6 point ones in the paper weighed in about 16GB each; I have
+thought about changing this to packed binary...) even though the
+program doesn't need it, it's done this way to stop me forgetting to
+do so.  It then also dumps the output (stuff you want like parameters)
+to the .out and plots to the .ps.
+
+Alternatively, you can -l an existing MC file, and it will read it and
+then compute the statistics from the posterior samples and make the
+plots.  The simulation is not parallel, partly because I didn't need
+it (I was running 8 separate chains at a time anyway), and partly
+because the Adaptive Metropolis chains are purely sequential - so the
+only thing I could really have done would be to compute the light
+curve points in parallel (tried this and it didn't seem to help
+much).  Metropolis-Hastings and related methods don't suffer from this
+restriction.
+
+Input file specification:
+
+Everything is assumed to be a light curve in the "master" filter
+unless prefixed with something=.  This filter is the one for which all
+the parameters get computed.  My lc1= are the I or V filter curves and
+get fit with their own surface brightness ratio J_1 and consequently
+also have their own light ratios.  The options after the , are roughly
+as follows:
+
+,[number]         specify exposure time in seconds, doing so triggers
+                  integration of the model over this exposure time,
+                  assuming the given times are midpoint times.  This
+                  is not yet supported in the modified program and is
+                  currently ignored.  It is not really necessary for
+                  most ground-based data.
+
+air (or fitair)   fit an extinction term "k_n*(X-1)" for this LC
+cm (or fitcm)     MEarth-specific ("common mode" correction)
+err (or fiterr)   fit for (multiplicative) error inflation factor s_n
+
+useair            use the extinction term fit to the first light curve
+                  in this filter to correct this light curve, rather
+                  than putting in an extra one (this is also fairly
+                  specific to what I was doing)
+usecm             same for "common mode"
+
+The RVs take a slightly different option set.  Because there is no
+good way (that I know of) to estimate errors for TODCOR velocities,
+they are estimated from the residuals, and the numbers in the third
+column of the input file are the peak correlation values, used to
+decide the weights (as described in the paper), if you say "havewt".
+They are treated as errors in the normal fashion if you don't say
+"havewt".
+
+If fitting for error inflation, you have to say err= to specify the
+initial guess of the error (which is the error itself in "havewt"
+mode, and is added in quadrature with what it got from the file
+otherwise).  This value has to be non-zero due to the way the priors
+work.  If you don't know, set to about 1/10 the estimated error.
+
+Other miscellany:
+
+All velocities are in km/s.
+
+Corrections are performed for light travel time across the system
+itself (called the Romer delay in the solar system) and for the
+Doppler shift of the orbital frequency (often confusingly called
+"light travel time" in the literature).  To get the former right, the
+program needs to know the physical semimajor axis, so you need radial
+velocities.  To get the latter right, the velocities (or gamma
+velocity, if given rather than fit) must be Barycentric.
+
+The Adaptive MC can fail in subtle but spectacular ways if the initial
+velocity estimates (or some of the other parameters) are way off.
+Some of the problems may be due to poor convergence in the Levenberg
+Marquardt, giving an incorrect initial covariance matrix.  The initial
+parameter estimates should be refined until they are pretty good first
+before attempting to use the MC.
+
+For fitting a "normal" number of parameters, I would suggest 10^6
+points is a sensible minimum for reliable uncertainties and
+correlation plots.  Smaller numbers are okay for testing.
+
+To test convergence visually, I usually just plot the chain.  To
+understand the plots, note that the adaptive method is turned on 10%
+of the way in, which is visible as a sudden change (hopefully,
+improvement) in the rate of exploration of the parameter space.
+Samples after 50% of the way through are included in the final
+parameter estimates.
+
+Bugs / known problems:
+
+The Monte Carlo output analysis uses a lot of RAM because the entire
+data-set is stored.
+
+Handling of fixed parameters during L-M is done internally for
+historical reasons.  This is not necessary with MPFIT, which can do
+this itself.
+
+I have seen signs of convergence problems in the L-M since I switched
+it from levmar to MPFIT.  This can probably be solved by manually
+specifying stepsizes on the more troublesome parameters (period and T0
+being the most likely suspects).
+
+There could be many more.
+

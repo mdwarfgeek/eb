@@ -22,9 +22,17 @@ called the Romer delay).  The model can also compute light ratios and
 radial velocities.
 
 A Python wrapper is provided, and is intended to be the primary way to
-use the model.  The original Monte Carlo program (in C) from the paper
-will also be provided as an example, once the source has been cleaned
-up (the original is messy and has many dependencies).
+use the model.  
+
+An updated version of the Monte Carlo program (in C) from the 2011
+paper is also provided in "ebmc".  It has a number of dependencies
+that may make it tricky to get working and is therefore not included
+in the default set of Makefile targets.  This is very bare bones, not
+general, messy, and has no user interface to speak of.  It is not
+intended to be used as-is, but may serve as a place to borrow ideas
+from.  It has accumulated a large number of changes since the version
+used for the paper, and therefore does not exactly reproduce the
+published results.
 
 The file API.txt describes how to use the light curve generator, and
 gives the meanings of the parameters.  Some practical notes on fitting
@@ -60,11 +68,40 @@ the examples (*.py) and the C API documentation.  The "eb_" or "EB_"
 prefix used to avoid namespace pollution in C is not needed in the
 Python bindings and is therefore omitted.
 
+C fitter / Monte Carlo program (directory ebmc)
+-----------------------------------------------
+
+My C subroutine library from "lib" on github.  The Makefiles currently
+assume it's located in a directory "lib" at the same level as the "eb"
+directory (i.e. ../lib if this README is in the current directory).
+
+MPFIT, C version
+http://www.physics.wisc.edu/~craigm/idl/cmpfit.html
+
+The original program used levmar instead of MPFIT to provide the
+Levenberg-Marquardt minimizer.  This is still supported (for now) as
+an alternative to MPFIT by defining USE_LEVMAR (see make.inc).
+http://users.ics.forth.gr/~lourakis/levmar/
+
+PGPLOT >= 5.1.1 (optional, plots disabled if unavailable)
+http://www.astro.caltech.edu/~tjp/pgplot/
+
+The colour Postscript ("cps") driver is assumed to be available.
+Everything else is optional.  Successfully linking to PGPLOT can be
+tricky, particularly on Mac OS X.  Some suggestions are included as
+comments in make.inc.  To disable the plots, override PGPLOT_INC to
+remove the -DHAVE_PGPLOT.
+
 Building
 ========
 
 The standard Makefile builds the light curve generator and Python
 module by default when you type "make".
+
+To build the fitter / Monte Carlo program, change to the ebmc
+directory and run "make".  You may need to alter the top level
+make.inc file or override some of the variables so it can find the
+dependencies or to disable some features.
 
 Automatic dependency generation for header files is supported, and
 recommended if you plan to update using git or make modifications.
