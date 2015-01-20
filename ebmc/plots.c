@@ -1237,155 +1237,157 @@ int do_plots (struct fit_parms *par,
     npanel = 2;
   }
 
-  /* Plot combined RV */
-  ymin = rvmin;
-  ymax = rvmax;
-  yrange = ymax-ymin;
+  if(nrv > 0) {
+    /* Plot combined RV */
+    ymin = rvmin;
+    ymax = rvmax;
+    yrange = ymax-ymin;
+    
+    ymin -= 0.05*yrange;
+    ymax += 0.05*yrange;
+    
+    residmin = rvresidmin;
+    residmax = rvresidmax;
+    residrange = residmax-residmin;
+    
+    residmin -= 0.05*residrange;
+    residmax += 0.05*residrange;
+    
+    residmin -= (nrv-1)*residrange;
+    
+    cpgpage();
+    cpgvstd();
+    cpgqvp(0, &vx1, &vx2, &vy1, &vy2);
+    cpgsch(powf(npanel, -1.0/3.0));  /* same size as before */
+    cpgqcs(0, &vxch, &vych);
+    vpad = 3*vxch;
+    
+    vh = (vy2 - vy1) / 5;
+    vw = (vx2 - vx1) / 1;
+    
+    xmin = rvxmin;
+    xmax = rvxmax;
+    
+    xmin -= 0.05*(rvxmax-rvxmin);
+    xmax += 0.05*(rvxmax-rvxmin);
+    
+    cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+3*vh, vy1+5*vh);
+    
+    cpgswin(xmin, xmax, ymin, ymax);
+    cpgbox("BCST", 0.0, 0, "BCNST", 0.0, 0);
+    cpglab("", "RV (km/s)", "");
+    
+    irv = 0;
+    
+    cpgqch(&ch);
 
-  ymin -= 0.05*yrange;
-  ymax += 0.05*yrange;
-
-  residmin = rvresidmin;
-  residmax = rvresidmax;
-  residrange = residmax-residmin;
-
-  residmin -= 0.05*residrange;
-  residmax += 0.05*residrange;
-
-  residmin -= (nrv-1)*residrange;
-
-  cpgpage();
-  cpgvstd();
-  cpgqvp(0, &vx1, &vx2, &vy1, &vy2);
-  cpgsch(powf(npanel, -1.0/3.0));  /* same size as before */
-  cpgqcs(0, &vxch, &vych);
-  vpad = 3*vxch;
-
-  vh = (vy2 - vy1) / 5;
-  vw = (vx2 - vx1) / 1;
-
-  xmin = rvxmin;
-  xmax = rvxmax;
-
-  xmin -= 0.05*(rvxmax-rvxmin);
-  xmax += 0.05*(rvxmax-rvxmin);
-
-  cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+3*vh, vy1+5*vh);
-  
-  cpgswin(xmin, xmax, ymin, ymax);
-  cpgbox("BCST", 0.0, 0, "BCNST", 0.0, 0);
-  cpglab("", "RV (km/s)", "");
-
-  irv = 0;
-  
-  cpgqch(&ch);
-
-  for(idat = 0; idat < ndata; idat++) {
-    if(dlist[idat].obstype == OBS_RV)
-      yzp = 0;
-    else
-      continue;
-
-    for(meas = 0; meas < dlist[idat].nmeas; meas++) {
-      /* Compute phase */
-      tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
-      phi = tmp / v[EB_PAR_P];
+    for(idat = 0; idat < ndata; idat++) {
+      if(dlist[idat].obstype == OBS_RV)
+        yzp = 0;
+      else
+        continue;
       
-      x = phi;
-      y = dlist[idat].y[meas] - yzp;
-
-      y1 = y-errscale(dlist+idat, v, meas);
-      y2 = y+errscale(dlist+idat, v, meas);
+      for(meas = 0; meas < dlist[idat].nmeas; meas++) {
+        /* Compute phase */
+        tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
+        phi = tmp / v[EB_PAR_P];
+        
+        x = phi;
+        y = dlist[idat].y[meas] - yzp;
+        
+        y1 = y-errscale(dlist+idat, v, meas);
+        y2 = y+errscale(dlist+idat, v, meas);
+        
+        if(!dlist[idat].iflag[meas])
+          cpgsci(2);
+        
+        cpgsch(2.5*ch);
+        cpgpt(1, &x, &y, 16+irv);
+        cpgsch(ch);
+        cpgerry(1, &x, &y1, &y2, 1);
+        
+        cpgsci(1);
+      }
       
-      if(!dlist[idat].iflag[meas])
-	cpgsci(2);
+      samp = (xmax-xmin) / 3000;
+      for(i = 0; i <= 3000; i++)
+        dlx[i] = xmin + samp*i;
       
-      cpgsch(2.5*ch);
-      cpgpt(1, &x, &y, 16+irv);
-      cpgsch(ch);
-      cpgerry(1, &x, &y1, &y2, 1);
+      fit_func(par, idat, NULL,
+               dlx, dly, NULL, 3001,
+               1, 1, 0);
       
+      for(i = 0; i <= 3000; i++) {
+        lx[i] = dlx[i];
+        ly[i] = dly[i];
+      }
+      
+      cpgsci(2);
+      cpgslw(4);
+      cpgline(3001, lx, ly);
+      cpgslw(1);
       cpgsci(1);
+      
+      irv++;
     }
+
+    cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+2*vh, vy1+3*vh);
     
-    samp = (xmax-xmin) / 3000;
-    for(i = 0; i <= 3000; i++)
-      dlx[i] = xmin + samp*i;
-      
-    fit_func(par, idat, NULL,
-             dlx, dly, NULL, 3001,
-             1, 1, 0);
-
-    for(i = 0; i <= 3000; i++) {
-      lx[i] = dlx[i];
-      ly[i] = dly[i];
-    }
+    cpgswin(xmin, xmax, residmin, residmax);
+    cpgbox("1BCNST", 0.0, 0, "BCNST", 0.0, 0);
+    cpglab("Phase", "Residual", "");
     
-    cpgsci(2);
-    cpgslw(4);
-    cpgline(3001, lx, ly);
-    cpgslw(1);
-    cpgsci(1);
-
-    irv++;
-  }    
-
-  cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+2*vh, vy1+3*vh);
-  
-  cpgswin(xmin, xmax, residmin, residmax);
-  cpgbox("1BCNST", 0.0, 0, "BCNST", 0.0, 0);
-  cpglab("Phase", "Residual", "");
-  
-  irv = 0;
-
-  cpgqch(&ch);
-
-  for(idat = 0; idat < ndata; idat++) {
-    if(dlist[idat].obstype == OBS_RV)
-      yzp = 0;
-    else
-      continue;
-
-    for(meas = 0; meas < dlist[idat].nmeas; meas++) {
-      /* Compute phase */
-      tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
-      phi = tmp / v[EB_PAR_P];
+    irv = 0;
+    
+    cpgqch(&ch);
+    
+    for(idat = 0; idat < ndata; idat++) {
+      if(dlist[idat].obstype == OBS_RV)
+        yzp = 0;
+      else
+        continue;
       
-      x = phi;
-      y = dlist[idat].resid[meas]-RESIDEXPAND*residrange*irv;
-      y1 = y-errscale(dlist+idat, v, meas);
-      y2 = y+errscale(dlist+idat, v, meas);
-      
-      if(!dlist[idat].iflag[meas])
-	cpgsci(2);
-      
-      cpgsch(1.4*ch);
-      cpgpt(1, &x, &y, 16+irv);
-      cpgsch(ch);
-      cpgerry(1, &x, &y1, &y2, 1);
-      
+      for(meas = 0; meas < dlist[idat].nmeas; meas++) {
+        /* Compute phase */
+        tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
+        phi = tmp / v[EB_PAR_P];
+        
+        x = phi;
+        y = dlist[idat].resid[meas]-RESIDEXPAND*residrange*irv;
+        y1 = y-errscale(dlist+idat, v, meas);
+        y2 = y+errscale(dlist+idat, v, meas);
+        
+        if(!dlist[idat].iflag[meas])
+          cpgsci(2);
+        
+        cpgsch(1.4*ch);
+        cpgpt(1, &x, &y, 16+irv);
+        cpgsch(ch);
+        cpgerry(1, &x, &y1, &y2, 1);
+        
+        cpgsci(1);
+      }
+    
+      lx[0] = xmin;
+      lx[1] = xmax;
+      ly[0] = -RESIDEXPAND*residrange*irv;
+      ly[1] = ly[0];
+
+      cpgsci(2);
+      cpgslw(4);
+      cpgline(2, lx, ly);
+      cpgslw(1);
       cpgsci(1);
+      
+      cpgqcs(4, &xch, &ych);
+      
+      snprintf(lab, sizeof(lab), "%d", irv+1);
+      cpgptxt(xmax+0.5*xch,
+              -RESIDEXPAND*residrange*irv-0.5*ych,
+              0.0, 0.0, lab);
+      
+      irv++;
     }
-    
-    lx[0] = xmin;
-    lx[1] = xmax;
-    ly[0] = -RESIDEXPAND*residrange*irv;
-    ly[1] = ly[0];
-
-    cpgsci(2);
-    cpgslw(4);
-    cpgline(2, lx, ly);
-    cpgslw(1);
-    cpgsci(1);
-
-    cpgqcs(4, &xch, &ych);
-
-    snprintf(lab, sizeof(lab), "%d", irv+1);
-    cpgptxt(xmax+0.5*xch,
-	    -RESIDEXPAND*residrange*irv-0.5*ych,
-	    0.0, 0.0, lab);
-
-    irv++;
   }
 
   cpgpage();
@@ -1393,7 +1395,7 @@ int do_plots (struct fit_parms *par,
   cpgqvp(0, &vx1, &vx2, &vy1, &vy2);
   cpgsch(powf(npanel, -1.0/3.0));  /* same size as before */
   cpgqcs(0, &vxch, &vych);
-
+  vpad = 3*vxch;
   ypad = 3*vych;
 
   vh = (vy2 - vy1) / 2;
