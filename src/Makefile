@@ -1,8 +1,8 @@
 # Makefile for EB model library
 
 C_SRCS=eb_model_flt.c eb_model_dbl.c eb_strings.c eb_util.c \
-	dellke_gen.c dellppi_gen.c dellpi_gen.c \
-	fellke_gen.c fellppi_gen.c fellpi_gen.c
+	dellke_gen.c dellpi_gen.c \
+	fellke_gen.c fellpi_gen.c
 S_SRCS=
 OBJS=${C_SRCS:%.c=%.o} ${S_SRCS:%.S=%.o}
 
