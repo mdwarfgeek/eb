@@ -133,10 +133,12 @@ int do_fit (struct fit_parms *par, int nsigma, FILE *ofp, char *errstr) {
 
   for(ivparm = 0, iaparm = 0; ivparm < par->nparm; ivparm++)
     if(par->vary[ivparm] == 1) {
-      /* Manually set stepsize for rotation parameter, seems
-         to cause trouble for the autoscaler. */
-      if(ivparm == EB_PAR_ROT1 ||
-         ivparm == EB_PAR_ROT2)
+      /* Manually set some step sizes for parameters that can cause
+         trouble for the autoscaler. */
+      if(ivparm == EB_PAR_COSI)
+        mpp[iaparm].step = 1.0e-3;
+      else if(ivparm == EB_PAR_ROT1 ||
+              ivparm == EB_PAR_ROT2)
         mpp[iaparm].step = 1.0e-6;
 
       iaparm++;
