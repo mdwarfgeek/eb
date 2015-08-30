@@ -4,14 +4,12 @@
 #include <math.h>
 
 /* Fundamental (defining) constants, mostly IAU and IERS */
-#define EB_GMSUN  1.32712440041e20  /* m^3 / s^2, IAU 2009, TDB compatible */
+#define EB_GMSUN  1.3271244e20      /* m^3 / s^2, IAU 2015 Resol B3 */
 #define EB_AU     149597870700.0    /* m, IAU 2009 system */
 #define EB_LIGHT  2.99792458e8      /* m/s, definition */
 
 /* Other astrophysical quantities */
-#define EB_RSUN   6.95508e8      /* m, from Brown & Christensen-Dalsgaard 1998
-                                  * and as adopted by Cox 2000 (Allen's
-                                  * Astrophysical Quantities, 4th Ed.) */
+#define EB_RSUN   6.957e8        /* m, IAU 2015 Resol B3 */
 
 /* This is pretty useful too */
 #ifndef TWOPI
