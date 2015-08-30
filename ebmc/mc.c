@@ -109,7 +109,7 @@ static int mc_out (struct fit_parms *par, double *ainit,
 
   /* Light travel time parameter */
   if(par->vary[EB_PAR_CLTT] < 0)
-    vinit[EB_PAR_CLTT] = vinit[PAR_KTOT]*1000 / LIGHT;
+    vinit[EB_PAR_CLTT] = vinit[PAR_KTOT]*1000 / EB_LIGHT;
 
   free((void *) mc_tmp);
   mc_tmp = (double *) NULL;
@@ -464,7 +464,7 @@ int read_mc (struct fit_parms *par, FILE *ofp,
         
         /* Light travel time parameter */
         if(par->vary[EB_PAR_CLTT] < 0)
-          v[EB_PAR_CLTT] = v[PAR_KTOT]*1000 / LIGHT;
+          v[EB_PAR_CLTT] = v[PAR_KTOT]*1000 / EB_LIGHT;
 
         /* Derived parameters */
         eb_getvder(v, v[PAR_GAMMA], v[PAR_KTOT], vder);
@@ -922,7 +922,7 @@ int do_mc (struct fit_parms *par, FILE *ofp,
 
     /* Light travel time parameter */
     if(par->vary[EB_PAR_CLTT] < 0)
-      vtrial[EB_PAR_CLTT] = vtrial[PAR_KTOT]*1000 / LIGHT;
+      vtrial[EB_PAR_CLTT] = vtrial[PAR_KTOT]*1000 / EB_LIGHT;
 
     /* Check RV scale factors are non-negative */
     rvok = 1;
