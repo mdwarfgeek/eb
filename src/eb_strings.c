@@ -37,7 +37,8 @@ char *eb_parnames[EB_NPAR] = {
   "a_21",
   "b_21",
   "a_22",
-  "b_22"
+  "b_22",
+  "dwdt"
 };
 
 char *eb_parunits[EB_NPAR] = {
@@ -77,7 +78,8 @@ char *eb_parunits[EB_NPAR] = {
   "",
   "",
   "",
-  ""
+  "",
+  "rad/day"
 };
 
 char *eb_dernames[EB_NDER] = {

@@ -194,6 +194,10 @@ EB_PAR_T0       19
  "transit convention", not the "radial velocity convention").
  These quantities must be in the same units as the time array.
 
+ The orbital period is "as measured", so when there is apsidal motion,
+ this includes the time-averaged overall drift in the eclipse times
+ resulting from that as well.
+
 EB_PAR_LDNON1   20
 EB_PAR_LDNON2   21
 
@@ -296,7 +300,13 @@ EB_PAR_OOE22B   36
  data, but there may be ways to vary them during analysis to allow for
  our ignorance of their true values.
 
-EB_NPAR         37
+EB_PAR_DWDT     37
+
+ Apsidal precession rate (time derivative of argument of periastron)
+ in radians / time unit (time units are those of the time array and
+ orbital period, usually days).
+
+EB_NPAR         38
 
  Total length of the parameter vector.
 

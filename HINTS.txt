@@ -248,6 +248,7 @@ EB_PAR_T0
 EB_PAR_CLTT
 EB_PAR_ROT1
 EB_PAR_ROT2
+EB_PAR_DWDT
 
 There is not any explicit support for fitting multi-band data in a
 single call to the model.  However, it can be achieved by separate

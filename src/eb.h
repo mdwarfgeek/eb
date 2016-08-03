@@ -54,7 +54,8 @@
 #define EB_PAR_OOE21B  34  /* cos(...) coeff star 2 */
 #define EB_PAR_OOE22A  35  /* sin(2*...) coeff star 2 */
 #define EB_PAR_OOE22B  36  /* cos(2*...) coeff star 2 */
-#define EB_NPAR        37
+#define EB_PAR_DWDT    37  /* apsidal precession rate (rad/day) */
+#define EB_NPAR        38
 
 /* Flags */
 #define EB_FLAG_REFL 0x01  /* reflection rather than albedo */

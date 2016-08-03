@@ -128,10 +128,11 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
            int flags, int npt) {
   struct star sp, ss, *s;
 
-  double ecosw, esinw, tconj, period, dphi;
+  double ecosw0, esinw0, tconj, period, dphi;
   double omega, esq, ecc, roe;
-  double maconj, eaoff, eascl, cosw, sinw;
-  double ma, ea, se, ce, f, df, delta, vnorm, sv, cv;
+  double maconj, eaoff, eascl;
+  double dt, ma, ea, se, ce, f, df, delta, vnorm, sv, cv;
+  double dwdt, dw, sdw, cdw, ecosw, esinw, cosw, sinw;
   double svw, cvw, phio, stid, ctid, so, co;
   double cltt, rv1, rv2, svw1, cvw1, svw2, cvw2, dys, dzs;
 
@@ -158,8 +159,8 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   rsum    = parm[EB_PAR_RASUM];
   sp.rr   = parm[EB_PAR_RR];
   cosi    = parm[EB_PAR_COSI];
-  ecosw   = parm[EB_PAR_ECOSW];
-  esinw   = parm[EB_PAR_ESINW];
+  ecosw0  = parm[EB_PAR_ECOSW];
+  esinw0  = parm[EB_PAR_ESINW];
   sp.u1   = parm[EB_PAR_LDLIN1];
   sp.u2   = parm[EB_PAR_LDNON1];
   ss.u1   = parm[EB_PAR_LDLIN2];
@@ -194,6 +195,8 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   ss.oa2  = parm[EB_PAR_OOE22A];
   ss.ob2  = parm[EB_PAR_OOE22B];
 
+  dwdt    = parm[EB_PAR_DWDT];
+
   if(flags & EB_FLAG_PHI) {
     /* [0,1] phase, not time */
     tconj = 0.0;
@@ -208,7 +211,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   dphi *= TWOPI;
 
   /* Eccentricity */
-  esq = ecosw*ecosw + esinw*esinw;
+  esq = ecosw0*ecosw0 + esinw0*esinw0;
   ecc = sqrt(esq);
   roe = sqrt(1.0 - esq);
 
@@ -216,7 +219,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   cltt *= roe;
 
   /* Mean anomaly at inferior conjunction */
-  maconj = atan2(roe * ecosw, esq + esinw) - roe * ecosw / (1 + esinw);
+  maconj = atan2(roe * ecosw0, esq + esinw0) - roe * ecosw0 / (1 + esinw0);
 
   /* Offset and scale used for initial eccentric anomaly when
      eccentricity is large. */
@@ -227,16 +230,6 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   else {
     eaoff = 0;
     eascl = 1.0;
-  }
-
-  /* Need to substitute these when e=0. */
-  if(ecc > 0) {
-    cosw = ecosw / ecc;
-    sinw = esinw / ecc;
-  }
-  else {
-    cosw = 0.0;
-    sinw = 1.0;
   }
 
   /* Precompute these */
@@ -351,8 +344,29 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
       continue;
     }
 
+    /* Time relative to T0 */
+    dt = t[p] - tconj;
+
+    /* Apsidal motion, if needed */
+    if(dwdt == 0) {
+      dw = 0;
+      ecosw = ecosw0;
+      esinw = esinw0;
+    }
+    else {
+      if(flags & EB_FLAG_PHI)
+        dw = dwdt * dt * period;  /* dt is phase */
+      else
+        dw = dwdt * dt;  /* dt is time */
+
+      inline_sincos(dw, sdw, cdw);
+
+      ecosw = ecosw0 * cdw - esinw0 * sdw;
+      esinw = esinw0 * cdw + ecosw0 * sdw;
+    }
+
     /* Mean anomaly, reduced to [-pi, pi] */
-    ma = remainder(omega * (t[p] - tconj) + maconj - dphi, TWOPI);
+    ma = remainder(omega * dt + maconj - dphi - dw, TWOPI);
 
     /* Initial eccentric anomaly */
     ea = (ma+eaoff)*eascl;
@@ -376,6 +390,16 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     /* rv * sin, cos of true anomaly */
     sv = se * roe;
     cv = ce - ecc;
+
+    /* Need to substitute these when e=0. */
+    if(ecc > 0) {
+      cosw = ecosw / ecc;
+      sinw = esinw / ecc;
+    }
+    else {
+      cosw = 0.0;
+      sinw = 1.0;
+    }
 
     /* rv * sin(v+w) and rv * cos(v+w) */
     svw = sv*cosw + cv*sinw;
@@ -450,7 +474,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     ss.l = ss.o * (1.0 - ss.delt * csqpsi);
 
     /* Out of eclipse variations due to spots */
-    phio = omega * (t[p] - tconj) - dphi;
+    phio = omega * dt - dphi;
 
     if(sp.rot) {
       inline_sincos(phio * sp.rot, so, co);
