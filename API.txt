@@ -428,9 +428,8 @@ void eb_getvder (double *parm, double gamma, double ktot,
  are used for the physical constants throughout the analysis.  The
  values used by this routine are exposed in the <eb.h> header file as
  constants EB_GMSUN, EB_AU, EB_LIGHT and EB_RSUN in MKS units and are
- the IAU 2009 TDB-compatible values for GMSUN and AU, and RSUN from
- Brown & Christensen-Dalsgaard 1998 (as adopted by Cox 2000 in Allen's
- Astrophysical Quantities, 4th Ed.).
+ the IAU 2009 TDB-compatible values for AU, and IAU 2015 Resolution B3
+ for GMSUN and RSUN.
 
 Derived parameter vector ("vder")
 ---------------------------------
