@@ -134,8 +134,7 @@ EB_PAR_ESINW    7
 EB_PAR_GD1      8
 EB_PAR_GD2      9
 
- Gravity darkening exponent expressed in surface brightness (not
- effective temperature) for star 1 and star 2.
+ Gravity darkening coefficients for star 1 and star 2.
 
 EB_PAR_REFL1    10
 EB_PAR_REFL2    11
