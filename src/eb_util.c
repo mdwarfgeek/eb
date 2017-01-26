@@ -181,10 +181,10 @@ void eb_getvder (double *v, double gamma, double ktot, double *vder) {
    */
   omega += omega * gamma*1000/EB_LIGHT;
 
-  tmp = ktot*1000 * roe;
+  tmp = ktot*1000 * roe / sini;
 
-  vder[EB_PAR_A] = tmp / (EB_RSUN*omega*sini);
-  vder[EB_PAR_MTOT] = tmp*tmp*tmp / (EB_GMSUN*omega*sini);
+  vder[EB_PAR_A] = tmp / (EB_RSUN*omega);
+  vder[EB_PAR_MTOT] = tmp*tmp*tmp / (EB_GMSUN*omega);
   vder[EB_PAR_M1] = vder[EB_PAR_MTOT] / qpo;
   vder[EB_PAR_M2] = v[EB_PAR_Q] * vder[EB_PAR_M1];
   vder[EB_PAR_RTOT] = v[EB_PAR_RASUM] * vder[EB_PAR_A];
