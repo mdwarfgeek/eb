@@ -8,6 +8,8 @@ OBJS=${C_SRCS:%.c=%.o} ${S_SRCS:%.S=%.o}
 
 include ../make.inc
 
+.PHONY: all depend clean
+
 all: machconst.h libeb.a
 
 depend: machconst.h

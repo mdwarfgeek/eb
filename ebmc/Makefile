@@ -9,13 +9,15 @@ CFLAGS+= -I../src -I../../lib $(PGPLOT_INC) $(LM_INC)
 # Linker flags
 LIBS=$(PGPLOT_LIBS) $(LM_LIBS) $(LAPACK_LIBS) -lm
 
+.PHONY: all depend clean
+
 all: ebmc
 
 depend:
 	$(CC) $(CFLAGS) -E -MM $(SRCS) > .depend
 
 ../src/libeb.a:
-	(cd ../src && $(MAKE) libeb.a)
+	(cd ../src && $(MAKE))
 
 ../../lib/liblfa.a:
 	(cd ../../lib && $(MAKE))
