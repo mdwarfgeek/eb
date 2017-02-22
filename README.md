@@ -22,7 +22,9 @@ called the Romer delay).  The model can also compute light ratios and
 radial velocities.
 
 A Python wrapper is provided, and is intended to be the primary way to
-use the model.  
+use the model.  An experimental IDL wrapper is also provided in the
+subdirectory "idl", but I don't use IDL so it has had very little
+testing.
 
 An updated version of the Monte Carlo program (in C) from the 2011
 paper is also provided in "ebmc".  It has a number of dependencies
@@ -96,7 +98,8 @@ Building
 ========
 
 The standard Makefile builds the light curve generator and Python
-module by default when you type "make".
+module by default when you type "make".  To build the IDL wrapper,
+type "make idl" (there is no need to type "make" first).
 
 To build the fitter / Monte Carlo program, change to the ebmc
 directory and run "make".  You may need to alter the top level

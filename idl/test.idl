@@ -1,0 +1,25 @@
+parm = dblarr(38)
+t = indgen(10,/double)
+typ = make_array(10,/byte,value=4)
+
+parm(7)=0.3
+parm(18)=10.0
+parm(19)=-0.15
+
+print,t
+
+y = eb_model(parm, t, typ)
+
+print,y
+
+phi = eb_phisec(parm(7),parm(6))
+
+print,phi
+
+phicont = eb_phicont(parm(7),parm(6),parm(5),0.01d0)
+
+print,phicont
+
+vder = eb_getvder(parm, 0, 0)
+
+print,vder
