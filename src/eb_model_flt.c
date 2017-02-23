@@ -1,5 +1,7 @@
 #define DATATYPE float
 #define FUNC     eb_model_flt
+#define FSUBA    eb_model_flt_
+#define FSUBB    eb_model_flt__
 #define TABS     fabsf
 #define TACOS    acosf
 #define TCBRT    cbrtf

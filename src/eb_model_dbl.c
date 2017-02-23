@@ -1,5 +1,7 @@
 #define DATATYPE double
 #define FUNC     eb_model_dbl
+#define FSUBA    eb_model_dbl_
+#define FSUBB    eb_model_dbl__
 #define TABS     fabs
 #define TACOS    acos
 #define TCBRT    cbrt

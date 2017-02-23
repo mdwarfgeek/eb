@@ -718,3 +718,24 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
       ieclout[p] = iecl;
   }
 }
+
+/* Fortran wrappers.  For simplicity we define both the single and
+   double underscore variants, so we don't need to know how the
+   Fortran compiler is set up. */
+
+void FSUBA (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
+            unsigned char *typ, DATATYPE *out, unsigned char *ieclout,
+            int *flags, int *npt) {
+  FUNC(parm, t, ol1, ol2,
+       typ, out, ieclout,
+       *flags, *npt);
+}
+
+void FSUBB (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
+            unsigned char *typ, DATATYPE *out, unsigned char *ieclout,
+            int *flags, int *npt) {
+  FUNC(parm, t, ol1, ol2,
+       typ, out, ieclout,
+       *flags, *npt);
+}
+

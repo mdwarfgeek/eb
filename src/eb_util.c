@@ -227,3 +227,33 @@ void eb_getvder (double *v, double gamma, double ktot, double *vder) {
   vder[EB_PAR_DURSEC] = dps * v[EB_PAR_P] * 24;
 }
   
+/* Fortran wrappers.  For simplicity we define both the single and
+   double underscore variants, so we don't need to know how the
+   Fortran compiler is set up. */
+
+void eb_phisec_ (double *esinw, double *ecosw, double *phisec) {
+  *phisec = eb_phisec(*esinw, *ecosw);
+}
+
+void eb_phisec__ (double *esinw, double *ecosw, double *phisec) {
+  *phisec = eb_phisec(*esinw, *ecosw);
+}
+
+void eb_phicont_ (double *esinw, double *ecosw, double *cosi,
+                  double *d, double *phi) {
+  eb_phicont(*esinw, *ecosw, *cosi, *d, phi);
+}
+
+void eb_phicont__ (double *esinw, double *ecosw, double *cosi,
+                  double *d, double *phi) {
+  eb_phicont(*esinw, *ecosw, *cosi, *d, phi);
+}
+
+void eb_getvder_ (double *parm, double *gamma, double *ktot, double *vder) {
+  eb_getvder(parm, *gamma, *ktot, vder);
+}
+
+void eb_getvder__ (double *parm, double *gamma, double *ktot, double *vder) {
+  eb_getvder(parm, *gamma, *ktot, vder);
+}
+

@@ -33,6 +33,43 @@ The header file src/eb.h contains the definitions of constants for the
 parameter vector entries, flags and computed quantities, and a few
 physical constants used internally for the calculations in eb_getvder.
 
+Use from Fortran
+----------------
+
+Thin Fortran wrappers are supplied for these routines.  The equivalent
+prototypes are:
+
+  subroutine eb_model_dbl(parm, t, ol1, ol2, typ, out, iecl, flags, npt)
+  double precision parm(*), t(npt), ol1(npt), ol2(npt), out(npt)
+  byte typ(npt)
+  logical iecl(npt)
+  integer flags, npt
+
+  subroutine eb_model_flt(parm, t, ol1, ol2, typ, out, iecl, flags, npt)
+  double precision parm(*), t(npt)
+  real ol1(npt), ol2(npt), out(npt)
+  byte typ(npt)
+  logical iecl(npt)
+  integer flags, npt
+
+  subroutine eb_phisec(esinw, ecosw, phisec)
+  double precision esinw, ecosw, phisec
+
+  subroutine eb_phicont(esinw, ecosw, cosi, d, phi)
+  double precision esinw, ecosw, cosi, d, phi(4)
+
+  subroutine eb_getvder(parm, gamma, ktot, vder)
+  double precision parm(*), gamma, ktot, vder(*)
+
+where eb_phisec has been converted to a subroutine to avoid needing to
+declare it before use.  The appropriate lengths of the "parm" and
+"vder" arrays given as (*) above are defined by EB_NPAR and EB_NDER in
+eb.h.
+
+The wrappers should be compatible with Fortran 77 and should work with
+most modern compilers that use underscoring to mangle Fortran names
+(append one or two underscores, both variants are defined).
+
 Model calculation (eb_model_*)
 ==============================
 

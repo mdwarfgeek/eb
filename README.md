@@ -22,8 +22,9 @@ called the Romer delay).  The model can also compute light ratios and
 radial velocities.
 
 A Python wrapper is provided, and is intended to be the primary way to
-use the model.  An experimental IDL wrapper is also provided in the
-subdirectory "idl", but I don't use IDL so it has had very little
+use the model, but it can also be called directly from C and via a
+thin wrapper from Fortran.  An experimental IDL wrapper is provided in
+the subdirectory "idl", but I don't use IDL so it has had very little
 testing.
 
 An updated version of the Monte Carlo program (in C) from the 2011
