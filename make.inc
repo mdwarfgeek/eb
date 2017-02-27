@@ -25,8 +25,8 @@ CFLAGS=-std=gnu99 -Wall $(OPT) -fPIC
 
 # For L-M, we need MPFIT (C version) or Levmar.
 # I prefer MPFIT.
-LM_INC?=
-LM_LIBS?=-lmpfit
+LM_INC?=-I$(HOME)/include
+LM_LIBS?=-L$(HOME)/lib64 -lmpfit
 # Levmar (used by older versions)
 #LM_INC?=-DUSE_LEVMAR
 #LM_LIBS?=-llevmar -llapack -lf77blas -lcblas -latlas

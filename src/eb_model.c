@@ -15,7 +15,7 @@ extern DATATYPE ELLPI (DATATYPE p, DATATYPE y);
    equation go.  The precision here is probably overkill for most
    applications, so tune according to taste if it's too slow. */
 #define KEPLER_PREC    1.0e-13
-#define KEPLER_MAXITER 20
+#define KEPLER_MAXITER 100
 
 /* This structure contains the per-star parameters.  Having them all
    in once place makes it easier to extract the ones for the occulter
@@ -120,6 +120,9 @@ static inline void ltt (double cltt,
     ea -= delta;
   }
 
+  if(i >= KEPLER_MAXITER)
+    fprintf(stderr, "ltt: iteration limit reached\n");
+
   *cvw = (ce-ecc)*cosw - se*sinw*roe;
 }
 
@@ -130,7 +133,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
 
   double ecosw0, esinw0, tconj, period, dphi;
   double omega, esq, ecc, roe;
-  double maconj, eaoff, eascl;
+  double maconj;
   double dt, ma, ea, se, ce, f, df, delta, vnorm, sv, cv;
   double dwdt, dw, sdw, cdw, ecosw, esinw, cosw, sinw;
   double svw, cvw, phio, stid, ctid, so, co;
@@ -220,17 +223,6 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
 
   /* Mean anomaly at inferior conjunction */
   maconj = atan2(roe * ecosw0, esq + esinw0) - roe * ecosw0 / (1 + esinw0);
-
-  /* Offset and scale used for initial eccentric anomaly when
-     eccentricity is large. */
-  if(ecc > 0.8) {
-    eaoff = M_PI * ecc;
-    eascl = 1.0 / (1.0 + ecc);
-  }
-  else {
-    eaoff = 0;
-    eascl = 1.0;
-  }
 
   /* Precompute these */
   csqi = cosi*cosi;
@@ -369,7 +361,10 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     ma = remainder(omega * dt + maconj - dphi - dw, TWOPI);
 
     /* Initial eccentric anomaly */
-    ea = (ma+eaoff)*eascl;
+    if(ecc > 0)
+      ea = ma + ecc * sin(ma);
+    else
+      ea = ma;
 
     /* Solve Kepler's equation */
     for(i = 0; i < KEPLER_MAXITER; i++) {
@@ -386,6 +381,9 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
 
       ea -= delta;
     }
+
+    if(i >= KEPLER_MAXITER)
+      fprintf(stderr, "kepler: iteration limit reached\n");
 
     /* rv * sin, cos of true anomaly */
     sv = se * roe;
