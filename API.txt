@@ -406,8 +406,12 @@ EB_OBS_VRAD1    4
 EB_OBS_VRAD2    5
 
  "Radial velocity", cos(v+w) + e cos w where v is true anomaly, e is
- eccentricity and w is argument of periastron.  To get measured radial 
- velocity, multiply by semiamplitude and add gamma (systemic) velocity.
+ eccentricity and w is argument of periastron.  Note that for
+ historical reasons, the only difference between VRAD1 and VRAD2 is in
+ the calculation of light travel time, the value of omega used in both
+ cases is the same.  So to get measured radial velocity for the
+ primary, multiply by semiamplitude and add gamma (systemic) velocity.
+ For the secondary, multiply by -semiamplitude and add gamma velocity.
 
 EB_OBS_PSS      6
 
