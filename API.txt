@@ -230,9 +230,8 @@ EB_PAR_T0       19
  "transit convention", not the "radial velocity convention").
  These quantities must be in the same units as the time array.
 
- The orbital period is "as measured", so when there is apsidal motion,
- this includes the time-averaged overall drift in the eclipse times
- resulting from that as well.
+ The orbital period is the sidereal period when there is apsidal
+ motion.
 
 EB_PAR_LDNON1   20
 EB_PAR_LDNON2   21
