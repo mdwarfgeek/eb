@@ -134,7 +134,8 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   double ecosw0, esinw0, tconj, period, dphi;
   double omega, esq, ecc, roe;
   double maconj;
-  double dt, ma, ea, se, ce, f, df, delta, vnorm, sv, cv;
+  double dt, ma, ea, alpha, beta, z, ste;
+  double se, ce, f, df, delta, vnorm, sv, cv;
   double dwdt, dw, sdw, cdw, ecosw, esinw, cosw, sinw;
   double svw, cvw, phio, stid, ctid, so, co;
   double cltt, rv1, rv2, svw1, cvw1, svw2, cvw2, dys, dzs;
@@ -361,12 +362,32 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     ma = remainder(omega * dt + maconj - dphi - dw, TWOPI);
 
     /* Initial eccentric anomaly */
-    if(ecc > 0)
-      ea = ma + ecc * sin(ma);
+    if(ecc > 0) {
+      /* For eccentric orbits, use cubic approximation from Mikkola (1987)
+         to provide initial guess of eccentric anomaly. */
+
+      /* Eq. 9a */
+      tmp = 1.0 / (4 * ecc + 0.5);
+
+      alpha = (1.0 - ecc) * tmp;
+      beta = 0.5 * ma * tmp;
+      
+      /* Eq. 9b */
+      z = cbrt(beta + copysign(sqrt(beta*beta + alpha*alpha*alpha), beta));
+      
+      /* Eq. 9c: initial value of sin(E/3) */
+      ste = z - alpha / z;
+      
+      /* Eq. 7: 5th order correction term */
+      ste -= 0.078 * ste*ste*ste*ste*ste / (1.0 + ecc);
+      
+      /* Eq. 8: eccentric anomaly */
+      ea = ma + ecc * ste * (3.0 - 4.0 * ste*ste);
+    }
     else
       ea = ma;
 
-    /* Solve Kepler's equation */
+    /* Refine solution of Kepler's equation using Newton's method */
     for(i = 0; i < KEPLER_MAXITER; i++) {
       inline_bare_sincos(ea, se, ce);
 
