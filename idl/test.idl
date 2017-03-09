@@ -1,10 +1,20 @@
-parm = dblarr(38)
-t = indgen(10,/double)
-typ = make_array(10,/byte,value=4)
+eb = eb_const()
 
-parm(7)=0.3
-parm(18)=10.0
-parm(19)=-0.15
+parm = dblarr(eb.NPAR)
+t = indgen(10,/double)
+typ = make_array(10,/byte,value=eb.OBS_VRAD1)
+
+parm[eb.PAR_RASUM] =  0.05d0
+parm[eb.PAR_RR]    =  1.0d0
+parm[eb.PAR_Q]     =  1.0d0
+parm[eb.PAR_ESINW] =  0.3d0
+parm[eb.PAR_P]     = 10.0d0
+parm[eb.PAR_T0]    = -0.15d0
+
+parnames = eb_parnames()
+parunits = eb_parunits()
+
+for i=0,eb.NPAR-1 do print,parnames[i],' ',parm[i],' ',parunits[i]
 
 print,t
 
@@ -12,14 +22,19 @@ y = eb_model(parm, t, typ)
 
 print,y
 
-phi = eb_phisec(parm(7),parm(6))
+phi = eb_phisec(parm[eb.PAR_ESINW],parm[eb.PAR_ECOSW])
 
 print,phi
 
-phicont = eb_phicont(parm(7),parm(6),parm(5),0.01d0)
+phicont = eb_phicont(parm[eb.PAR_ESINW],parm[eb.PAR_ECOSW],parm[eb.PAR_COSI],parm[eb.PAR_RASUM])
 
 print,phicont
 
-vder = eb_getvder(parm, 0, 0)
+vder = eb_getvder(parm, 10.0d0, 100.0d0)
+
+dernames = eb_dernames()
+derunits = eb_derunits()
+
+for i=0,eb.NDER-1 do print,dernames[i],' ',vder[i],' ',derunits[i]
 
 print,vder
