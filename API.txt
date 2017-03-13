@@ -424,6 +424,13 @@ EB_OBS_A        7
  The internal quantity "a", the plane of sky separation minus radius
  ratio.  Mostly for testing.
 
+EB_OBS_LSS      8
+
+ Separation between the two stars along the line of sight, in units of
+ the semimajor axis.  The sign convention is such that the primary is
+ closer to the observer for positive values.  Used in computing light
+ travel time.
+
 Utility subroutines
 ===================
 

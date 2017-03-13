@@ -448,6 +448,7 @@ static IDL_STRUCT_TAG_DEF eb_const_tags[] = {
   { "OBS_VRAD2",  NULL, (void *) IDL_TYP_BYTE,   0 },
   { "OBS_PSS",    NULL, (void *) IDL_TYP_BYTE,   0 },
   { "OBS_A",      NULL, (void *) IDL_TYP_BYTE,   0 },
+  { "OBS_LSS",    NULL, (void *) IDL_TYP_BYTE,   0 },
 
   { "PAR_I",      NULL, (void *) IDL_TYP_LONG,   0 },
   { "PAR_R1A",    NULL, (void *) IDL_TYP_LONG,   0 },
@@ -532,6 +533,7 @@ static struct {
   unsigned char obs_vrad2;
   unsigned char obs_pss;
   unsigned char obs_a;
+  unsigned char obs_lss;
 
   IDL_LONG par_i;
   IDL_LONG par_r1a;
@@ -613,6 +615,7 @@ static struct {
   EB_OBS_VRAD2,
   EB_OBS_PSS,
   EB_OBS_A,
+  EB_OBS_LSS,
 
   EB_PAR_I,
   EB_PAR_R1A,

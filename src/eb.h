@@ -70,6 +70,7 @@
 #define EB_OBS_VRAD2    5  /* cos(v+w) + e cos w for star 2 */
 #define EB_OBS_PSS      6  /* plane of sky separation ("d" in our notation) */
 #define EB_OBS_A        7  /* d - rr, used to test if in eclipse (< 1) */
+#define EB_OBS_LSS      8  /* line of sight separation */
 
 /* Function prototype for the generator.  Fills "out" with model
    observables.  The array "t" is a time array in the same units as P

@@ -424,6 +424,11 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     svw = sv*cosw + cv*sinw;
     cvw = cv*cosw - sv*sinw;
 
+    if(typ[p] == EB_OBS_LSS) {
+      out[p] = svw * sini;
+      continue;
+    }
+
     /* Values for separate stars at time light was emitted */
     rv1 = df;
     rv2 = df;
