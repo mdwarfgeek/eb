@@ -331,8 +331,8 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
       /* Special call to return avg. light ratio (CHECKME!) */
       tmp = 0.5*(1.0 + 0.5*ssqi);
 
-      *out = (ss.o * (1.0 - 0.5*ss.delt*ssqi) * (1.0-ss.oav) + ss.refl*tmp)
-           / (sp.o * (1.0 - 0.5*sp.delt*ssqi) * (1.0-sp.oav) + sp.refl*tmp);
+      out[p] = (ss.o * (1.0 - 0.5*ss.delt*ssqi) * (1.0-ss.oav) + ss.refl*tmp)
+             / (sp.o * (1.0 - 0.5*sp.delt*ssqi) * (1.0-sp.oav) + sp.refl*tmp);
 
       continue;
     }
