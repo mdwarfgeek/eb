@@ -28,6 +28,9 @@ static int mc_out (struct fit_parms *par, double *ainit,
 
   int ivparm, iaparm;
 
+  double theomega, domega;
+  int isimd;
+
   vinit = par->vinit;
 
   /* Allocate workspace */
@@ -68,11 +71,39 @@ static int mc_out (struct fit_parms *par, double *ainit,
       iaparm++;
     }
 
+  /* Update full parameter vector only so we can compute omega */
+  for(ivparm = 0, iaparm = 0; ivparm < par->nparm; ivparm++)
+    if(par->vary[ivparm] == 1 || par->vary[ivparm] == 2) {
+      vinit[ivparm] = ainit[iaparm] + aperc[3*iaparm+1];  /* median */
+      iaparm++;
+    }
+
+  /* Check for LD2 = LD1 case; copy if necessary */
+  if(par->ldtype[1] == LD_SAME) {
+    vinit[EB_PAR_LDLIN2] = vinit[EB_PAR_LDLIN1];
+    vinit[EB_PAR_LDNON2] = vinit[EB_PAR_LDNON1];
+  }
+
+  /* Light travel time parameter */
+  if(par->vary[EB_PAR_CLTT] < 0)
+    vinit[EB_PAR_CLTT] = vinit[PAR_KTOT]*1000 / EB_LIGHT;
+
+  /* Argument of periastron needs special treatment */
+  theomega = atan2(vinit[EB_PAR_ESINW], vinit[EB_PAR_ECOSW]) * 180.0/M_PI;
+
   for(ivparm = 0; ivparm < EB_NDER; ivparm++) {
     mc_ptr = mc_der+ivparm*nalloc;
     memcpy(mc_tmp, mc_ptr, nsimd * sizeof(double));
 
     perc = &(derperc[3*ivparm]);
+
+    /* Force correct revolution for omega by wrapping delta into (-180,180] */
+    if(ivparm == EB_PAR_OMEGA) {
+      for(isimd = 0; isimd < nsimd; isimd++) {
+        domega = mc_tmp[isimd] - theomega;
+        mc_tmp[isimd] = theomega + remainder(domega, 360.0);
+      }
+    }
 
     dmultquickselect(mc_tmp, nsimd,
                      ind, 3,
@@ -93,23 +124,9 @@ static int mc_out (struct fit_parms *par, double *ainit,
   plot_derived_hist(mc_der, nalloc, nsimd,
                     derperc, vderbest);
 
-  /* Update result */
+  /* Update fit parameter vector now */
   for(iaparm = 0; iaparm < par->nvarym; iaparm++)
     ainit[iaparm] += aperc[3*iaparm+1];  /* median */
-
-  for(ivparm = 0, iaparm = 0; ivparm < par->nparm; ivparm++)
-    if(par->vary[ivparm] == 1 || par->vary[ivparm] == 2)
-      vinit[ivparm] = ainit[iaparm++];
-
-  /* Check for LD2 = LD1 case; copy if necessary */
-  if(par->ldtype[1] == LD_SAME) {
-    vinit[EB_PAR_LDLIN2] = vinit[EB_PAR_LDLIN1];
-    vinit[EB_PAR_LDNON2] = vinit[EB_PAR_LDNON1];
-  }
-
-  /* Light travel time parameter */
-  if(par->vary[EB_PAR_CLTT] < 0)
-    vinit[EB_PAR_CLTT] = vinit[PAR_KTOT]*1000 / EB_LIGHT;
 
   free((void *) mc_tmp);
   mc_tmp = (double *) NULL;
