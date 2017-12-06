@@ -145,6 +145,65 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   return(NULL);
 }
 
+static PyObject *wrap_phiperi (PyObject *self, PyObject *args) {
+  int narg;
+
+  PyObject *parmarg = NULL;
+  PyObject *parmarr = NULL;
+  double *parm;
+
+  double esinw, ecosw;
+
+  double phi = 0;
+
+  /* How many non-keyword arguments? */
+  narg = PyTuple_Size(args);
+
+  if(narg == 1) {
+    /* Parameter vector argument */
+    if(!PyArg_ParseTuple(args, "O", &parmarg))
+      return(NULL);
+    
+    /* Get array argument */
+    parmarr = PyArray_FROM_OTF(parmarg, NPY_DOUBLE, NPY_IN_ARRAY | NPY_FORCECAST);
+    if(!parmarr)
+      goto error;
+    
+    /* Check sizes */
+    if(PyArray_Size(parmarr) < EB_NPAR) {
+      PyErr_SetString(PyExc_IndexError,
+                      "Parameter vector is too short");
+      goto error;
+    }
+    
+    parm = (double *) PyArray_DATA(parmarr);
+    
+    phi = eb_phiperi(parm[EB_PAR_ESINW], parm[EB_PAR_ECOSW]);
+    
+    Py_DECREF(parmarr);
+  }
+  else if(narg == 2) {
+    /* esinw, ecosw given directly */
+    if(!PyArg_ParseTuple(args, "dd", &esinw, &ecosw))
+      return(NULL);
+
+    phi = eb_phiperi(esinw, ecosw);
+  }
+  else {
+    /* Invalid */
+    PyErr_SetString(PyExc_TypeError,
+                    "Usage: phiperi(esinw, ecosw) or phiperi(parm)");
+    goto error;
+  }
+
+  return(Py_BuildValue("d", phi));
+
+ error:
+  Py_XDECREF(parmarr);
+
+  return(NULL);
+}
+
 static PyObject *wrap_phisec (PyObject *self, PyObject *args) {
   int narg;
 
@@ -333,6 +392,11 @@ static PyMethodDef eb_methods[] = {
     "if you plan to use the routine getvder() on the same\n"
     "parameter vector, please note that the units of parm[PAR_P]\n"
     "must be Julian days.\n\n"
+  },
+  { "phiperi", (PyCFunction) wrap_phiperi, METH_VARARGS,
+    "phi = phiperi(esinw, ecosw)\n"
+    "phi = phiperi(parm)\n\n"
+    "Compute [-0.5,0.5] phase offset of periastron."
   },
   { "phisec", (PyCFunction) wrap_phisec, METH_VARARGS,
     "phi = phisec(esinw, ecosw)\n"

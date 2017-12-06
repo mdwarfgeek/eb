@@ -86,6 +86,7 @@ void eb_model_flt (double *parm, double *t, float *ol1, float *ol2,
                    int flags, int npt);
 
 /* Utility subroutines from ebutil.c */
+double eb_phiperi (double esinw, double ecosw);
 double eb_phisec (double esinw, double ecosw);
 void eb_phicont (double esinw, double ecosw, double cosi,
                  double d, double *phi);

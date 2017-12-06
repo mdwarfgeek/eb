@@ -214,6 +214,44 @@ IDL_VPTR wrap_eb_model (int argc, IDL_VPTR *argv, char *argk) {
   return(IDL_GettmpInt(-1));
 }
 
+IDL_VPTR wrap_eb_phiperi (int argc, IDL_VPTR *argv) {
+  IDL_VPTR esinw, ecosw;
+  double phi;
+
+  /* Check all required arguments are present */
+  if(argc != 2) {
+    IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_LONGJMP,
+                "Usage: y = eb_phiperi(esinw, ecosw)\n");
+    return(IDL_GettmpInt(-1));
+  }
+
+  esinw = argv[0];
+  
+  IDL_ENSURE_SIMPLE(esinw);
+  IDL_ENSURE_SCALAR(esinw);
+
+  if(esinw->type != IDL_TYP_DOUBLE)
+    esinw = IDL_CvtDbl(1, &esinw);
+
+  ecosw = argv[1];
+  
+  IDL_ENSURE_SIMPLE(ecosw);
+  IDL_ENSURE_SCALAR(ecosw);
+
+  if(ecosw->type != IDL_TYP_DOUBLE)
+    ecosw = IDL_CvtDbl(1, &ecosw);
+
+  phi = eb_phiperi(esinw->value.d, ecosw->value.d);
+
+  if(esinw != argv[0])
+    IDL_DELTMP(esinw);
+
+  if(ecosw != argv[1])
+    IDL_DELTMP(ecosw);
+
+  return(IDL_GettmpDouble(phi));
+}
+
 IDL_VPTR wrap_eb_phisec (int argc, IDL_VPTR *argv) {
   IDL_VPTR esinw, ecosw;
   double phi;
@@ -753,6 +791,12 @@ static IDL_SYSFUN_DEF2 eb_func_def[] = {
     0,
     IDL_MAXPARAMS,
     IDL_SYSFUN_DEF_F_KEYWORDS,
+    0 },
+  { (IDL_SYSRTN_GENERIC) wrap_eb_phiperi,
+    "EB_PHIPERI",
+    0,
+    IDL_MAXPARAMS,
+    0,
     0 },
   { (IDL_SYSRTN_GENERIC) wrap_eb_phisec,
     "EB_PHISEC",

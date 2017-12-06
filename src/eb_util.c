@@ -4,6 +4,21 @@
 
 #include "eb.h"
 
+double eb_phiperi (double esinw, double ecosw) {
+  double esinwsq, ecoswsq, esq, num, phi;
+
+  esinwsq = esinw*esinw;
+  ecoswsq = ecosw*ecosw;
+  esq = esinwsq + ecoswsq;
+
+  /* Mean anomaly offset from inferior conjunction to periastron. */
+  num = ecosw * sqrt(1.0 - esq);
+  phi = -atan2(num, esq + esinw) + num / (1.0 + esinw);
+  phi = remainder(phi, TWOPI);
+
+  return(phi / TWOPI);
+}
+
 double eb_phisec (double esinw, double ecosw) {
   double esinwsq, ecoswsq, esq, num, phi;
 
@@ -230,6 +245,14 @@ void eb_getvder (double *v, double gamma, double ktot, double *vder) {
 /* Fortran wrappers.  For simplicity we define both the single and
    double underscore variants, so we don't need to know how the
    Fortran compiler is set up. */
+
+void eb_phiperi_ (double *esinw, double *ecosw, double *phiperi) {
+  *phiperi = eb_phiperi(*esinw, *ecosw);
+}
+
+void eb_phiperi__ (double *esinw, double *ecosw, double *phiperi) {
+  *phiperi = eb_phiperi(*esinw, *ecosw);
+}
 
 void eb_phisec_ (double *esinw, double *ecosw, double *phisec) {
   *phisec = eb_phisec(*esinw, *ecosw);

@@ -22,6 +22,10 @@ y = eb_model(parm, t, typ)
 
 print,y
 
+phi = eb_phiperi(parm[eb.PAR_ESINW],parm[eb.PAR_ECOSW])
+
+print,phi
+
 phi = eb_phisec(parm[eb.PAR_ESINW],parm[eb.PAR_ECOSW])
 
 print,phi

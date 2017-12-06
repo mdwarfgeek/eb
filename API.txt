@@ -16,6 +16,7 @@ Overview
                     unsigned char *typ, float *out, unsigned char *iecl,
                     int flags, int npt);
 
+ double eb_phiperi (double esinw, double ecosw);
  double eb_phisec (double esinw, double ecosw);
  void eb_phicont (double esinw, double ecosw, double cosi,
                   double d, double *phi);
@@ -52,6 +53,9 @@ prototypes are:
   logical iecl(npt)
   integer flags, npt
 
+  subroutine eb_phiperi(esinw, ecosw, phiperi)
+  double precision esinw, ecosw, phiperi
+
   subroutine eb_phisec(esinw, ecosw, phisec)
   double precision esinw, ecosw, phisec
 
@@ -61,10 +65,10 @@ prototypes are:
   subroutine eb_getvder(parm, gamma, ktot, vder)
   double precision parm(*), gamma, ktot, vder(*)
 
-where eb_phisec has been converted to a subroutine to avoid needing to
-declare it before use.  The appropriate lengths of the "parm" and
-"vder" arrays given as (*) above are defined by EB_NPAR and EB_NDER in
-eb.h.
+where eb_phiperi and eb_phisec have been converted to subroutines to
+avoid needing to declare them before use.  The appropriate lengths of
+the "parm" and "vder" arrays given as (*) above are defined by EB_NPAR
+and EB_NDER in eb.h.
 
 The wrappers should be compatible with Fortran 77 and should work with
 most modern compilers that use underscoring to mangle Fortran names
@@ -433,6 +437,12 @@ EB_OBS_LSS      8
 
 Utility subroutines
 ===================
+
+double eb_phiperi (double esinw, double ecosw);
+
+ Returns the offset in normalized phase of periastron from inferior
+ conjunction, for a given set of e sin omega and e cos omega values.
+ The value returned is in the range (-0.5,0.5].
 
 double eb_phisec (double esinw, double ecosw);
 
