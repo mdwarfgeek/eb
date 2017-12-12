@@ -106,12 +106,8 @@ void eb_phicont (double esinw, double ecosw, double cosi,
         cvwsq = cvw*cvw;
         svwsq = 1.0-cvwsq;
 
-        if(svwsq < 0) {
-          /* No solution, just return conjunction phases */
-          sv = sign[i].s * cosw;
-          cv = sign[i].s * sinw;
+        if(svwsq < 0)  /* no solution */
           break;
-        }
 
         svw = sign[i].s * sqrt(svwsq);
         
@@ -129,12 +125,29 @@ void eb_phicont (double esinw, double ecosw, double cosi,
         
         delta = f / df;
         
+        cvw -= delta;
+
         if(fabs(delta) < DBL_EPSILON) {
           /* I think that's enough... */
           break;
         }
-        
-        cvw -= delta;
+      }
+
+      /* sin(v+w) */
+      cvwsq = cvw*cvw;
+      svwsq = 1.0-cvwsq;
+      
+      if(svwsq < 0) {
+        /* No solution, just return conjunction phases */
+        sv = sign[i].s * cosw;
+        cv = sign[i].s * sinw;
+      }
+      else {
+        svw = sign[i].s * sqrt(svwsq);
+      
+        /* sin(v) and cos(v) */
+        sv = svw * cosw - cvw * sinw;
+        cv = cvw * cosw + svw * sinw;
       }
     }      
     else {

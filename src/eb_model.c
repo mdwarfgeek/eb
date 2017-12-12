@@ -114,15 +114,19 @@ static inline void ltt (double cltt,
     
     delta = f / df;
     
+    ea -= delta;
+
     if(fabs(delta) < KEPLER_PREC)
       break;
-    
-    ea -= delta;
   }
 
   if(i >= KEPLER_MAXITER)
     fprintf(stderr, "ltt: iteration limit reached\n");
 
+  inline_bare_sincos(ea, se, ce);
+    
+  *rv  = 1.0 - ecc * ce;
+  *svw = se*cosw*roe + (ce-ecc)*sinw;
   *cvw = (ce-ecc)*cosw - se*sinw*roe;
 }
 
@@ -361,7 +365,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     /* Mean anomaly, reduced to [-pi, pi] */
     ma = remainder(omega * dt + maconj - dphi - dw, TWOPI);
 
-    /* Initial eccentric anomaly */
+    /* Eccentric or circular? */
     if(ecc > 0) {
       /* For eccentric orbits, use cubic approximation from Mikkola (1987)
          to provide initial guess of eccentric anomaly. */
@@ -383,42 +387,51 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
       
       /* Eq. 8: eccentric anomaly */
       ea = ma + ecc * ste * (3.0 - 4.0 * ste*ste);
+
+      /* Refine solution of Kepler's equation using Newton's method */
+      for(i = 0; i < KEPLER_MAXITER; i++) {
+        inline_bare_sincos(ea, se, ce);
+        
+        f = ea - ecc * se - ma;
+        df = 1.0 - ecc * ce;
+        delta = f / df;
+        
+        ea -= delta;
+        
+        if(fabs(delta) < KEPLER_PREC) {
+          /* I think that's enough... */
+          break;
+        }
+      }
+      
+      if(i >= KEPLER_MAXITER)
+        fprintf(stderr, "kepler: iteration limit reached\n");
+      
+      inline_bare_sincos(ea, se, ce);
+      
+      f = ea - ecc * se - ma;
+      df = 1.0 - ecc * ce;  /* = rv, used later */
+
+      cosw = ecosw / ecc;
+      sinw = esinw / ecc;      
     }
-    else
+    else {
       ea = ma;
 
-    /* Refine solution of Kepler's equation using Newton's method */
-    for(i = 0; i < KEPLER_MAXITER; i++) {
       inline_bare_sincos(ea, se, ce);
 
-      f = ea - ecc * se - ma;
-      df = 1.0 - ecc * ce;
-      delta = f / df;
-      
-      if(fabs(delta) < KEPLER_PREC) {
-	/* I think that's enough... */
-	break;
-      }
+      f = 0.0;
+      df = 1.0;
 
-      ea -= delta;
+      /* Need to substitute these when e=0. */
+      cosw = 0.0;
+      sinw = 1.0;
     }
-
-    if(i >= KEPLER_MAXITER)
-      fprintf(stderr, "kepler: iteration limit reached\n");
 
     /* rv * sin, cos of true anomaly */
     sv = se * roe;
     cv = ce - ecc;
 
-    /* Need to substitute these when e=0. */
-    if(ecc > 0) {
-      cosw = ecosw / ecc;
-      sinw = esinw / ecc;
-    }
-    else {
-      cosw = 0.0;
-      sinw = 1.0;
-    }
 
     /* rv * sin(v+w) and rv * cos(v+w) */
     svw = sv*cosw + cv*sinw;
