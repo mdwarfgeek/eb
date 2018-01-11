@@ -120,8 +120,10 @@ void eb_getvder (double *v, double gamma, double ktot, double *vder);
 
 /* Arrays of names and units for parameters */
 extern char *eb_parnames[EB_NPAR];
+extern char *eb_partexsym[EB_NPAR];
 extern char *eb_parunits[EB_NPAR];
 extern char *eb_dernames[EB_NDER];
+extern char *eb_dertexsym[EB_NDER];
 extern char *eb_derunits[EB_NDER];
 
 #endif  /* EB_H */

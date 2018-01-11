@@ -719,6 +719,28 @@ IDL_VPTR wrap_eb_parnames (int argc, IDL_VPTR *argv) {
   return(out);
 }
 
+IDL_VPTR wrap_eb_partexsym (int argc, IDL_VPTR *argv) {
+  IDL_MEMINT dim[1] = { EB_NPAR };
+  IDL_STRING *ss;
+  IDL_VPTR out;
+  int ipar;
+
+  /* Make output array (same shape as t) */
+  ss = (IDL_STRING *) IDL_MakeTempArray(IDL_TYP_STRING,
+                                        1,
+                                        dim,
+                                        IDL_ARR_INI_NOP,
+                                        &out);
+
+  for(ipar = 0; ipar < EB_NPAR; ipar++) {
+    ss[ipar].slen  = strlen(eb_partexsym[ipar]);
+    ss[ipar].stype = 0;
+    ss[ipar].s     = eb_partexsym[ipar];
+  }
+
+  return(out);
+}
+
 IDL_VPTR wrap_eb_parunits (int argc, IDL_VPTR *argv) {
   IDL_MEMINT dim[1] = { EB_NPAR };
   IDL_STRING *ss;
@@ -758,6 +780,28 @@ IDL_VPTR wrap_eb_dernames (int argc, IDL_VPTR *argv) {
     ss[ider].slen  = strlen(eb_dernames[ider]);
     ss[ider].stype = 0;
     ss[ider].s     = eb_dernames[ider];
+  }
+
+  return(out);
+}
+
+IDL_VPTR wrap_eb_dertexsym (int argc, IDL_VPTR *argv) {
+  IDL_MEMINT dim[1] = { EB_NDER };
+  IDL_STRING *ss;
+  IDL_VPTR out;
+  int ider;
+
+  /* Make output array (same shape as t) */
+  ss = (IDL_STRING *) IDL_MakeTempArray(IDL_TYP_STRING,
+                                        1,
+                                        dim,
+                                        IDL_ARR_INI_NOP,
+                                        &out);
+
+  for(ider = 0; ider < EB_NDER; ider++) {
+    ss[ider].slen  = strlen(eb_dertexsym[ider]);
+    ss[ider].stype = 0;
+    ss[ider].s     = eb_dertexsym[ider];
   }
 
   return(out);
@@ -828,6 +872,12 @@ static IDL_SYSFUN_DEF2 eb_func_def[] = {
     IDL_MAXPARAMS,
     0,
     0 },
+  { (IDL_SYSRTN_GENERIC) wrap_eb_partexsym,
+    "EB_PARTEXSYM",
+    0,
+    IDL_MAXPARAMS,
+    0,
+    0 },
   { (IDL_SYSRTN_GENERIC) wrap_eb_parunits,
     "EB_PARUNITS",
     0,
@@ -836,6 +886,12 @@ static IDL_SYSFUN_DEF2 eb_func_def[] = {
     0 },
   { (IDL_SYSRTN_GENERIC) wrap_eb_dernames,
     "EB_DERNAMES",
+    0,
+    IDL_MAXPARAMS,
+    0,
+    0 },
+  { (IDL_SYSRTN_GENERIC) wrap_eb_dertexsym,
+    "EB_DERTEXSYM",
     0,
     IDL_MAXPARAMS,
     0,

@@ -41,6 +41,47 @@ char *eb_parnames[EB_NPAR] = {
   "dwdt"
 };
 
+char *eb_partexsym[EB_NPAR] = {
+  "J",
+  "(R_1+R_2)/a",
+  "R_2/R_1",
+  "u_1",
+  "u_2",
+  "\\cos i",
+  "e \\cos \\omega",
+  "e \\sin \\omega",
+  "\\beta_1 y_1",
+  "\\beta_2 y_2",
+  "\\kappa_1",
+  "\\kappa_2",
+  "q",
+  "\\Phi",
+  "L_3",
+  "\\phi_0",
+  "z",
+  "\\delta",
+  "P",
+  "T_0",
+  "u'_1",
+  "u'_2",
+  "(K_1+K_2)/c",
+  "F_1",
+  "F_2",
+  "f_{{\\rm spot},1}",
+  "f_{{\\rm spot},2}",
+  "o_1",
+  "a_{11}",
+  "b_{11}",
+  "a_{12}",
+  "b_{12}",
+  "o_2",
+  "a_{21}",
+  "b_{21}",
+  "a_{22}",
+  "b_{22}",
+  "d\\omega/dt"
+};
+
 char *eb_parunits[EB_NPAR] = {
   "",
   "",
@@ -104,6 +145,30 @@ char *eb_dernames[EB_NDER] = {
   "T_sec",
   "dur_pri",
   "dur_sec"
+};
+
+char *eb_dertexsym[EB_NDER] = {
+  "i",
+  "R_1/a",
+  "R_2/a",
+  "e",
+  "\\omega",
+  "a",
+  "(M_1+M_2)",
+  "M_1",
+  "M_2",
+  "(R_1+R_2)",
+  "R_1",
+  "R_2",
+  "\\log g_1",
+  "\\log g_2",
+  "v_{{\\rm sync},1}",
+  "v_{{\\rm sync},2}",
+  "t_{\\rm sync}",
+  "t_{\\rm circ}",
+  "T_{\\rm sec}",
+  "t_{{\\rm dur},1}",
+  "t_{{\\rm dur},2}"
 };
 
 char *eb_derunits[EB_NDER] = {

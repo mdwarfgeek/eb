@@ -571,6 +571,16 @@ PyMODINIT_FUNC initeb (void) {
   o = PyTuple_New(EB_NPAR);
   if(o) {
     for(c = 0; c < EB_NPAR; c++) {
+      t = PyString_FromString(eb_partexsym[c]);
+      if(t)
+        PyTuple_SetItem(o, c, t);
+    }
+    PyModule_AddObject(m, "partexsym", o);
+  }
+
+  o = PyTuple_New(EB_NPAR);
+  if(o) {
+    for(c = 0; c < EB_NPAR; c++) {
       t = PyString_FromString(eb_parunits[c]);
       if(t)
         PyTuple_SetItem(o, c, t);
@@ -586,6 +596,16 @@ PyMODINIT_FUNC initeb (void) {
         PyTuple_SetItem(o, c, t);
     }
     PyModule_AddObject(m, "dernames", o);
+  }
+
+  o = PyTuple_New(EB_NDER);
+  if(o) {
+    for(c = 0; c < EB_NDER; c++) {
+      t = PyString_FromString(eb_dertexsym[c]);
+      if(t)
+        PyTuple_SetItem(o, c, t);
+    }
+    PyModule_AddObject(m, "dertexsym", o);
   }
 
   o = PyTuple_New(EB_NDER);
