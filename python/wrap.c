@@ -424,15 +424,7 @@ static PyMethodDef eb_methods[] = {
     "Returns a vector of length NDER containing the derived\n"
     "parameters.  If the optional radial velocity parameters are\n"
     "not given, the parameters depending on mass and system scale\n"
-    "(PAR_A - PAR_TCIRC) in the returned vector will be invalid.\n\n"
-    "NOTE: for precise work, it is important to ensure consistent\n"
-    "values are used for the physical constants throughout the\n"
-    "analysis.  The values used by this routine are exposed in\n"
-    "the module as constants GMSUN, AU, LIGHT and RSUN in MKS\n"
-    "units and are the IAU 2009 TDB-compatible values for GMSUN\n"
-    "and AU, and RSUN from Brown & Christensen-Dalsgaard 1998 (as\n"
-    "adopted by Cox 2000 in Allen's Astrophysical Quantities,\n"
-    "4th Ed.).\n"
+    "(PAR_A - PAR_TCIRC) in the returned vector will be invalid.\n"
   },
   { NULL, NULL, 0, NULL }
 };
@@ -528,6 +520,12 @@ PyMODINIT_FUNC initeb (void) {
     MAKECONST(AU),
     MAKECONST(LIGHT),
     MAKECONST(RSUN),
+    MAKECONST(DAY),
+    MAKECONST(REARTH),
+    MAKECONST(RJUP),
+    MAKECONST(GMEARTH),
+    MAKECONST(GMJUP),
+    { "TWOPI", TWOPI },
   };
 
   int c, nc;

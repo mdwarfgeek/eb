@@ -515,6 +515,12 @@ static IDL_STRUCT_TAG_DEF eb_const_tags[] = {
   { "AU",         NULL, (void *) IDL_TYP_DOUBLE, 0 },
   { "LIGHT",      NULL, (void *) IDL_TYP_DOUBLE, 0 },
   { "RSUN",       NULL, (void *) IDL_TYP_DOUBLE, 0 },
+  { "DAY",        NULL, (void *) IDL_TYP_DOUBLE, 0 },
+  { "REARTH",     NULL, (void *) IDL_TYP_DOUBLE, 0 },
+  { "RJUP",       NULL, (void *) IDL_TYP_DOUBLE, 0 },
+  { "GMEARTH",    NULL, (void *) IDL_TYP_DOUBLE, 0 },
+  { "GMJUP",      NULL, (void *) IDL_TYP_DOUBLE, 0 },
+  { "TWOPI",      NULL, (void *) IDL_TYP_DOUBLE, 0 },
 
   { NULL, NULL, NULL, 0 }
 };
@@ -600,6 +606,12 @@ static struct {
   double au;
   double light;
   double rsun;
+  double day;
+  double rearth;
+  double rjup;
+  double gmearth;
+  double gmjup;
+  double twopi;
 
 } eb_const_data = {
   EB_PAR_J,
@@ -681,7 +693,13 @@ static struct {
   EB_GMSUN,
   EB_AU,
   EB_LIGHT,
-  EB_RSUN
+  EB_RSUN,
+  EB_DAY,
+  EB_REARTH,
+  EB_RJUP,
+  EB_GMEARTH,
+  EB_GMJUP,
+  TWOPI
 };
 
 IDL_VPTR wrap_eb_const (int argc, IDL_VPTR *argv) {

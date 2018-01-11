@@ -197,10 +197,10 @@ void eb_getvder (double *v, double gamma, double ktot, double *vder) {
   qpo = 1.0+v[EB_PAR_Q];
 
   /* Orbital angular frequency. */ 
-  omega = 2.0*M_PI / (v[EB_PAR_P]*86400);
+  omega = 2.0*M_PI / (v[EB_PAR_P]*EB_DAY);
 
   /* Average apsidal motion is included in the period, so take that off. */
-  omega -= v[EB_PAR_DWDT] / 86400;
+  omega -= v[EB_PAR_DWDT] / EB_DAY;
 
   /* Correct to system Barycenter.  The factor (1.0+gamma/c) accounts
    * for the Doppler shift due to the systemic motion relative to the

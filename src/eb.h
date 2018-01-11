@@ -10,6 +10,13 @@
 
 /* Other astrophysical quantities */
 #define EB_RSUN   6.957e8        /* m, IAU 2015 Resol B3 */
+#define EB_DAY    86400          /* s, length of day */
+
+/* Planetary conversion constants, IAU 2015 Resol B3 */
+#define EB_REARTH  6.3781e6         /* m, equatorial */
+#define EB_RJUP    7.1492e7         /* m, equatorial */
+#define EB_GMEARTH 3.986004e14      /* m^3 / s^2 */
+#define EB_GMJUP   1.2668653e17     /* m^3 / s^2 */
 
 /* This is pretty useful too */
 #ifndef TWOPI
