@@ -117,5 +117,7 @@ Acknowledgments
 The author gratefully acknowledges the work of Paul B. Etzel, Daniel
 Popper, John Southworth, and Alvaro Gimenez.  These authors are
 thanked for their contributions to this research area, and for making
-their software available, upon which this model is based.
+their software available, upon which this model is based.  Guillermo
+Torres is thanked for his extensive contributions to the development,
+testing and documentation of the present software.
 
