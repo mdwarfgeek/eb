@@ -108,12 +108,12 @@ int do_plots (struct fit_parms *par,
            "HJD-T\\d0\\u (HJD-%.5lf)", par->hjdoff+v[EB_PAR_T0]);
 
   /* Range for magnified light curve plots */
-  xrmag = durpri+dursec;  /* twice the average */
+  xrmag = MAX(durpri, dursec);
 
-  xminmag[0] = xpri-0.5*xrmag;
-  xmaxmag[0] = xpri+0.5*xrmag;
-  xminmag[1] = xsec-0.5*xrmag;
-  xmaxmag[1] = xsec+0.5*xrmag;
+  xminmag[0] = xpri-xrmag;
+  xmaxmag[0] = xpri+xrmag;
+  xminmag[1] = xsec-xrmag;
+  xmaxmag[1] = xsec+xrmag;
 
   ymagmin[0] = FLT_MAX;
   ymagmax[0] = -FLT_MAX;
@@ -1403,12 +1403,12 @@ int do_plots (struct fit_parms *par,
 
   for(iplot = 1; iplot <= 2; iplot++) {
     if(iplot == 1) {
-      xmin = xpri-xrmag/2;
-      xmax = xpri+xrmag/2;
+      xmin = xpri-xrmag;
+      xmax = xpri+xrmag;
     }
     else if(iplot == 2) {
-      xmin = xsec-xrmag/2;
-      xmax = xsec+xrmag/2;
+      xmin = xsec-xrmag;
+      xmax = xsec+xrmag;
     }
 
     ymin = -0.005;
