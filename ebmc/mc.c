@@ -90,6 +90,8 @@ static int mc_out (struct fit_parms *par, double *ainit,
 
   /* Argument of periastron needs special treatment */
   theomega = atan2(vinit[EB_PAR_ESINW], vinit[EB_PAR_ECOSW]) * 180.0/M_PI;
+  if(theomega < 0.0)  /* wrap to conventional range [0,360) */
+    theomega += 360.0;
 
   for(ivparm = 0; ivparm < EB_NDER; ivparm++) {
     mc_ptr = mc_der+ivparm*nalloc;

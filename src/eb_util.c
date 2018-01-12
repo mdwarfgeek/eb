@@ -191,6 +191,8 @@ void eb_getvder (double *v, double gamma, double ktot, double *vder) {
 
   vder[EB_PAR_E] = sqrt(esq);
   vder[EB_PAR_OMEGA] = atan2(v[EB_PAR_ESINW], v[EB_PAR_ECOSW]) * 180.0/M_PI;
+  if(vder[EB_PAR_OMEGA] < 0.0)  /* wrap to conventional range [0,360) */
+    vder[EB_PAR_OMEGA] += 360.0;
   
   roe = sqrt(1.0-esq);
   sini = sqrt(1.0-v[EB_PAR_COSI]*v[EB_PAR_COSI]);
