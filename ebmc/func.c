@@ -2,8 +2,65 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #include "ebmc.h"
+
+#define NSAMP 29
+
+void model_resamp (double *parm, double *t, double *ol1, double *ol2,
+                   unsigned char *typ, double *y, unsigned char *iecl,
+                   int flags, int nmeas,
+                   float *texp) {
+  double ttmp[nmeas], ytmp[nmeas];
+  unsigned char iecltmp[nmeas];
+
+  double dtwin, dt1, dtsamp, dt;
+  int imeas, isamp;
+
+  /* Size of window (relative to texp) in same units as "t" */
+  if(flags & EB_FLAG_PHI)
+    dtwin = 1.0 / (parm[EB_PAR_P] * EB_DAY);
+  else
+    dtwin = 1.0 / EB_DAY;
+
+  /* Sampling */
+  dt1 = -0.5*dtwin;
+  dtsamp = dtwin / NSAMP;
+
+  /* Initialize accumulators */
+  for(imeas = 0; imeas < nmeas; imeas++) {
+    y[imeas] = 0;
+
+    if(iecl)
+      iecl[imeas] = 0;
+  }
+
+  /* Process samples in parallel */
+  for(isamp = 0; isamp < NSAMP; isamp++) {
+    /* Sample point */
+    dt = dt1 + dtsamp * (isamp+0.5);
+
+    /* Compute times */
+    for(imeas = 0; imeas < nmeas; imeas++)
+      ttmp[imeas] = t[imeas] + dt * texp[imeas];
+
+    /* Calculate model */
+    eb_model_dbl(parm, ttmp, NULL, NULL, typ, ytmp, iecltmp, flags, nmeas);
+
+    /* Accmuluate */
+    for(imeas = 0; imeas < nmeas; imeas++) {
+      y[imeas] += ytmp[imeas];
+
+      if(iecl)
+        iecl[imeas] |= iecltmp[imeas];
+    }
+  }
+
+  /* Convert to average */
+  for(imeas = 0; imeas < nmeas; imeas++)
+    y[imeas] /= NSAMP;
+}
 
 void fit_func (struct fit_parms *par, int id,
                double *a,
@@ -84,8 +141,13 @@ void fit_func (struct fit_parms *par, int id,
   }
 
   /* Compute model */
-  eb_model_dbl(v, t, NULL, NULL, typ, y, iecl,
-               iphi ? EB_FLAG_PHI : 0, nmeas);
+  if(par->dlist[id].texp && icor)
+    model_resamp(v, t, NULL, NULL, typ, y, iecl,
+                 iphi ? EB_FLAG_PHI : 0, nmeas,
+                 par->dlist[id].texp);
+  else
+    eb_model_dbl(v, t, NULL, NULL, typ, y, iecl,
+                 iphi ? EB_FLAG_PHI : 0, nmeas);
 
   /* Compute outputs */
   if(ot == OBS_LC) {

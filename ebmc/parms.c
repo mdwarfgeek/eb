@@ -40,7 +40,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
   for(idat = 0; idat < ndata; idat++) {
     /* Allocate buffer */
     dlist[idat].phitmp = (float *) malloc(2*dlist[idat].nmeas * sizeof(float));
-    dlist[idat].resid = (double *) malloc(2*dlist[idat].nmeas * sizeof(double));
+    dlist[idat].resid = (double *) malloc(3*dlist[idat].nmeas * sizeof(double));
     dlist[idat].iflag
       = (unsigned char *) malloc(2*dlist[idat].nmeas * sizeof(unsigned char));
 
@@ -52,6 +52,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
     dlist[idat].ytmp = dlist[idat].phitmp + dlist[idat].nmeas;
 
     dlist[idat].m = dlist[idat].resid + dlist[idat].nmeas;
+    dlist[idat].corr = dlist[idat].resid + 2*dlist[idat].nmeas;
 
     dlist[idat].iecl = dlist[idat].iflag + dlist[idat].nmeas;
 

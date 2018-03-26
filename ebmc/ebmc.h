@@ -44,11 +44,12 @@ struct fit_data {
   int obstype;     /* see eb.h */
   int iband;       /* passband number for LC / light ratio */
 
-  float texp;      /* integration time */
+  float *texp;     /* integration time */
   float errguess;  /* initial guess at error inflation parameter */
 
   double *resid;
   double *m;
+  double *corr;
 
   double ymed;
   double ysig;

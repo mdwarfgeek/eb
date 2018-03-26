@@ -323,9 +323,19 @@ int do_plots (struct fit_parms *par,
 
       cpglab("", lab, htlab);
       
+      /* Full model */
       fit_func(par, idat, NULL,
                dlist[idat].hjd, dlist[idat].m, NULL, dlist[idat].nmeas,
                0, 1, 1);
+
+      /* Model without systematics corrections for each data point */
+      fit_func(par, idat, NULL,
+               dlist[idat].hjd, dlist[idat].corr, NULL, dlist[idat].nmeas,
+               0, 1, 0);
+      
+      /* Correction */
+      for(meas = 0; meas < dlist[idat].nmeas; meas++)
+        dlist[idat].corr[meas] = dlist[idat].m[meas] - dlist[idat].corr[meas];
 
       for(meas = 0; meas < dlist[idat].nmeas; meas++) {
 	/* Compute phase */
@@ -358,7 +368,22 @@ int do_plots (struct fit_parms *par,
       cpgslw(1);
       cpgsci(1);
     }
-    
+    else {
+      /* Full model */
+      fit_func(par, idat, NULL,
+               dlist[idat].hjd, dlist[idat].m, NULL, dlist[idat].nmeas,
+               0, 1, 1);
+
+      /* Model without systematics corrections for each data point */
+      fit_func(par, idat, NULL,
+               dlist[idat].hjd, dlist[idat].corr, NULL, dlist[idat].nmeas,
+               0, 1, 0);
+      
+      /* Correction */
+      for(meas = 0; meas < dlist[idat].nmeas; meas++)
+        dlist[idat].corr[meas] = dlist[idat].m[meas] - dlist[idat].corr[meas];
+    }
+
     cpgsvp(vx1, vx2, vy1+vh, vy1+2.9*vh);
     
     if(dlist[idat].obstype == OBS_LC)
@@ -376,12 +401,8 @@ int do_plots (struct fit_parms *par,
       x = phi;
       y = dlist[idat].y[meas] - yzp;
       
-      if(dlist[idat].obstype == OBS_LC) {
-	if(dlist[idat].fitairm)
-	  y -= (dlist[idat].airmass[meas]-1.0)*v[dlist[idat].pairm];
-	if(dlist[idat].fitcm)
-	  y -= dlist[idat].cm[meas]*v[dlist[idat].pcm];
-      }
+      /* Apply systematics correction */
+      y -= dlist[idat].corr[meas];
       
       y1 = y-errscale(dlist+idat, v, meas);
       y2 = y+errscale(dlist+idat, v, meas);
@@ -726,12 +747,8 @@ int do_plots (struct fit_parms *par,
             x = phi;
             y = dlist[idat].y[meas] + LCEXPAND*yrange*icyclist[cyc] - yzp;
 	  
-            if(dlist[idat].obstype == OBS_LC) {
-              if(dlist[idat].fitairm)
-                y -= (dlist[idat].airmass[meas]-1.0)*v[dlist[idat].pairm];
-              if(dlist[idat].fitcm)
-                y -= dlist[idat].cm[meas]*v[dlist[idat].pcm];
-            }
+            /* Apply systematics correction */
+            y -= dlist[idat].corr[meas];
 	  
             y1 = y-errscale(dlist+idat, v, meas);
             y2 = y+errscale(dlist+idat, v, meas);
@@ -1042,9 +1059,19 @@ int do_plots (struct fit_parms *par,
       }
       cpgslw(1);
 
+      /* Full model */
       fit_func(par, idat, NULL,
                dlist[idat].hjd, dlist[idat].m, NULL, dlist[idat].nmeas,
                0, 1, 1);
+
+      /* Model without systematics corrections for each data point */
+      fit_func(par, idat, NULL,
+               dlist[idat].hjd, dlist[idat].corr, NULL, dlist[idat].nmeas,
+               0, 1, 0);
+
+      /* Correction */
+      for(meas = 0; meas < dlist[idat].nmeas; meas++)
+        dlist[idat].corr[meas] = dlist[idat].m[meas] - dlist[idat].corr[meas];
 
       for(meas = 0; meas < dlist[idat].nmeas; meas++) {
         /* Compute phase */
@@ -1121,11 +1148,9 @@ int do_plots (struct fit_parms *par,
         x = phi;
         y = dlist[idat].y[meas] - yzp;
       
-        if(dlist[idat].fitairm)
-          y -= (dlist[idat].airmass[meas]-1.0)*v[dlist[idat].pairm];
-        if(dlist[idat].fitcm)
-          y -= dlist[idat].cm[meas]*v[dlist[idat].pcm];
-      
+        /* Apply systematics correction */
+        y -= dlist[idat].corr[meas];
+
         y1 = y-errscale(dlist+idat, v, meas);
         y2 = y+errscale(dlist+idat, v, meas);
       
@@ -1307,6 +1332,20 @@ int do_plots (struct fit_parms *par,
       else
         continue;
       
+      /* Full model */
+      fit_func(par, idat, NULL,
+               dlist[idat].hjd, dlist[idat].m, NULL, dlist[idat].nmeas,
+               0, 1, 1);
+
+      /* Model without systematics corrections for each data point */
+      fit_func(par, idat, NULL,
+               dlist[idat].hjd, dlist[idat].corr, NULL, dlist[idat].nmeas,
+               0, 1, 0);
+
+      /* Correction */
+      for(meas = 0; meas < dlist[idat].nmeas; meas++)
+        dlist[idat].corr[meas] = dlist[idat].m[meas] - dlist[idat].corr[meas];
+
       for(meas = 0; meas < dlist[idat].nmeas; meas++) {
         /* Compute phase */
         tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
@@ -1314,6 +1353,9 @@ int do_plots (struct fit_parms *par,
         
         x = phi;
         y = dlist[idat].y[meas] - yzp;
+
+        /* Apply exposure time correction */
+        y -= dlist[idat].corr[meas];
         
         y1 = y-errscale(dlist+idat, v, meas);
         y2 = y+errscale(dlist+idat, v, meas);

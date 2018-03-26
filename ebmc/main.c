@@ -232,6 +232,9 @@ int main (int argc, char *argv[]) {
   if(!dlist)
     error(1, "malloc");
 
+  /* Ensure initialized to zero */
+  memset(dlist, 0, argc * sizeof(struct fit_data));
+
   for(f = 0; f < argc; f++) {
     p = strchr(argv[f], '=');
     if(p)
@@ -432,8 +435,7 @@ static char **read_list (char *str, int *n_r, char *errstr) {
 static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
                     char *errstr) {
   FILE *fp;
-  char line[1024], *p, *cp, *ep;
-  float tmp;
+  char line[1024], *p, *cp;
   int rv, iend;
 
   double *hjd = (double *) NULL;
@@ -441,12 +443,14 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
   float *airmass = (float *) NULL, *cm = (float *) NULL;
   int nmeas = 0;
 
-  float thistexp, thisextinc, thisfwhm, thisell, thisx, thisy, thistheta;
+  float thisextinc, thisfwhm, thisell, thisx, thisy, thistheta;
   float thissky, thispeak;
   int thiss, thisv, thisr, thismerid, thisflag;
 
+  int dotexp = 0;
+  float *texp = (float *) NULL;
+
   /* Defaults for options */
-  d->texp = 0;
   d->noacf = 0;
   d->fiterr = 0;
   d->fitairm = 0;
@@ -466,11 +470,8 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
       else
 	iend = 1;
 
-      /* First try numbers */
-      tmp = strtod(p, &ep);
-      if(*ep == '\0')
-	/* Understood - means integration time */
-	d->texp = tmp;
+      if(!strncasecmp(p, "texp", 4))
+	dotexp = 1;
       else if(!strncasecmp(p, "noacf", 5))
 	d->noacf = 1;
       else if(!strncasecmp(p, "fitair", 6) || !strncasecmp(p, "air", 3))
@@ -516,6 +517,9 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
       magerr = (float *) realloc(magerr, (nmeas+1) * sizeof(float));
       airmass = (float *) realloc(airmass, (nmeas+1) * sizeof(float));
       cm = (float *) realloc(cm, (nmeas+1) * sizeof(float));
+      texp = (float *) realloc(texp, (nmeas+1) * sizeof(float));
+
+      texp[nmeas] = 0.0;
 
       if(oldlc)
         rv = sscanf(p,
@@ -527,7 +531,7 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
         rv = sscanf(p,
                     "%lf %f %f %f %f %f %f %f %f %f %f %f %f %d %d %d %d %f",
                     hjd+nmeas, mag+nmeas, magerr+nmeas,
-                    &thistexp, &thisextinc, &thisfwhm, &thisell,
+                    texp+nmeas, &thisextinc, &thisfwhm, &thisell,
                     airmass+nmeas, &thisx, &thisy, &thistheta, &thissky,
                     &thispeak, &thiss, &thisv, &thisr, &thisflag, cm+nmeas);
 
@@ -561,6 +565,11 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
   d->cm = cm;
   d->iband = iband;
 
+  if(dotexp)
+    d->texp = texp;
+  else
+    d->texp = (float *) NULL;
+
   return(0);
 
  error:
@@ -582,15 +591,16 @@ static int read_rv (char *filename, struct fit_data *d,
 		    int component, int obstype, int iband, char *errstr) {
   FILE *fp;
   char line[1024], *p, *cp, *np, *ep;
-  float tmp;
   int rv, iend;
 
   double *hjd = (double *) NULL;
   float *y = (float *) NULL, *yerr = (float *) NULL, *yinfwt = (float *) NULL;
   int nmeas = 0;
 
+  int dotexp = 0;
+  float *texp = (float *) NULL;
+
   /* Defaults for options */
-  d->texp = 0;
   d->fiterr = 0;
   d->errguess = 0;
   d->havewt = 0;  /* error column should be treated as weights multiplying
@@ -610,11 +620,8 @@ static int read_rv (char *filename, struct fit_data *d,
       else
 	iend = 1;
 
-      /* First try numbers */
-      tmp = strtod(p, &ep);
-      if(*ep == '\0')
-	/* Understood - means integration time */
-	d->texp = tmp;
+      if(!strncasecmp(p, "texp", 4))
+	dotexp = 1;
       else if(!strncasecmp(p, "fiterr", 6) || !strncasecmp(p, "err", 3)) {
 	d->fiterr = 1;
 
@@ -664,19 +671,24 @@ static int read_rv (char *filename, struct fit_data *d,
       y = (float *) realloc(y, (nmeas+1) * sizeof(float));
       yerr = (float *) realloc(yerr, (nmeas+1) * sizeof(float));
       yinfwt = (float *) realloc(yinfwt, (nmeas+1) * sizeof(float));
+      texp = (float *) realloc(texp, (nmeas+1) * sizeof(float));
 
       /* Init errors to zero - they are optional and will be
        * computed if not given.
        */
       yerr[nmeas] = 0.0;
       yinfwt[nmeas] = 1.0;
+      texp[nmeas] = 0.0;
 
       /* Read */
-      rv = sscanf(p, "%lf %f %f",
-		  hjd+nmeas, y+nmeas, (d->havewt ? yinfwt : yerr)+nmeas);
+      rv = sscanf(p, "%lf %f %f %f",
+                  hjd+nmeas,
+                  y+nmeas,
+                  (d->havewt ? yinfwt : yerr)+nmeas,
+                  texp+nmeas);
       if(rv < 2) {
-	report_err(errstr, "could not understand: %s", p);
-	goto error;
+        report_err(errstr, "could not understand: %s", p);
+        goto error;
       }
 
       if(hjd[nmeas] > 0 && hjd[nmeas] < 2400000.5)
@@ -701,6 +713,11 @@ static int read_rv (char *filename, struct fit_data *d,
   d->component = component;
   d->obstype = obstype;
   d->iband = iband;
+
+  if(dotexp)
+    d->texp = texp;
+  else
+    d->texp = (float *) NULL;
 
   return(0);
 
@@ -787,6 +804,7 @@ static int read_prior (char *filename, struct fit_data *d, char *errstr) {
   d->yerr = yerr;
   d->nmeas = nmeas;
   d->obstype = OBS_PRIOR;
+  d->texp = (float *) NULL;
 
   return(0);
 
