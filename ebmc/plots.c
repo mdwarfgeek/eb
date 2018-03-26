@@ -39,7 +39,7 @@ int do_plots (struct fit_parms *par,
   float tmin, tmax, xmin = 0, xmax = 0, xpri, xsec, ymin, ymax, yrange;
   float residmin, residmax, residrange;
   float xrmag;
-  float xminmag[2], xmaxmag[2];
+  float xminmag[2], xmaxmag[2], xminecl[2], xmaxecl[2];
   float ymagmin[2], ymagmax[2];
   float residmagmin[2], residmagmax[2];
   int ynotdone, ymagnotdone[2];
@@ -114,6 +114,24 @@ int do_plots (struct fit_parms *par,
   xmaxmag[0] = xpri+xrmag;
   xminmag[1] = xsec-xrmag;
   xmaxmag[1] = xsec+xrmag;
+
+  if(durpri > 0) {
+    xminecl[0] = xpri-0.5*durpri;
+    xmaxecl[0] = xpri+0.5*durpri;
+  }
+  else {
+    xminecl[0] = xminmag[0];
+    xmaxecl[0] = xmaxmag[0];
+  }
+
+  if(dursec > 0) {
+    xminecl[1] = xsec-0.5*dursec;
+    xmaxecl[1] = xsec+0.5*dursec;
+  }
+  else {
+    xminecl[1] = xminmag[1];
+    xmaxecl[1] = xmaxmag[1];
+  }
 
   ymagmin[0] = FLT_MAX;
   ymagmax[0] = -FLT_MAX;
@@ -585,9 +603,9 @@ int do_plots (struct fit_parms *par,
               cyc = rint(tmp / v[EB_PAR_P] - 0.5*xsec) - cycmin;
 
               /* Anything in plot range? */
-              if((phi >= xminmag[iplot] && phi <= xmaxmag[iplot]) ||
-                 (phi-1 >= xminmag[iplot] && phi-1 <= xmaxmag[iplot]) ||
-                 (phi+1 >= xminmag[iplot] && phi+1 <= xmaxmag[iplot]))
+              if((phi >= xminecl[iplot] && phi <= xmaxecl[iplot]) ||
+                 (phi-1 >= xminecl[iplot] && phi-1 <= xmaxecl[iplot]) ||
+                 (phi+1 >= xminecl[iplot] && phi+1 <= xmaxecl[iplot]))
                 icyclist[cyc] = 1;
             }
 
@@ -787,8 +805,10 @@ int do_plots (struct fit_parms *par,
           ly[2] = ymin;
           ly[3] = ly[1];
 	
-          cpgline(2, &(lx[0]), &(ly[0]));
-          cpgline(2, &(lx[2]), &(ly[2]));
+          if(lx[0] != lx[2]) {
+            cpgline(2, &(lx[0]), &(ly[0]));
+            cpgline(2, &(lx[2]), &(ly[2]));
+          }
         }
       
         cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1, vy1+vh);
@@ -1521,8 +1541,10 @@ int do_plots (struct fit_parms *par,
     ly[2] = ymin;
     ly[3] = ly[1];
     
-    cpgline(2, &(lx[0]), &(ly[0]));
-    cpgline(2, &(lx[2]), &(ly[2]));
+    if(lx[0] != lx[2]) {
+      cpgline(2, &(lx[0]), &(ly[0]));
+      cpgline(2, &(lx[2]), &(ly[2]));
+    }
   }
 
   return(0);
