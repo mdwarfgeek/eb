@@ -503,6 +503,10 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
   }
 
   while(fgets(line, sizeof(line), fp)) {
+    p = strchr(line, '#');
+    if(p)
+      *p = '\0';
+
     p = sstrip(line);
 
     if(*p != '\0') {
@@ -648,6 +652,10 @@ static int read_rv (char *filename, struct fit_data *d,
   }
 
   while(fgets(line, sizeof(line), fp)) {
+    p = strchr(line, '#');
+    if(p)
+      *p = '\0';
+
     p = sstrip(line);
 
     if(*p != '\0') {
@@ -725,6 +733,10 @@ static int read_prior (char *filename, struct fit_data *d, char *errstr) {
   }
 
   while(fgets(line, sizeof(line), fp)) {
+    p = strchr(line, '#');
+    if(p)
+      *p = '\0';
+
     p = sstrip(line);
 
     if(*p != '\0') {
@@ -813,6 +825,10 @@ static int read_pset (char *filename, int ldtype[2],
   }
 
   while(fgets(line, sizeof(line), fp)) {
+    p = strchr(line, '#');
+    if(p)
+      *p = '\0';
+
     p = sstrip(line);
 
     if(*p != '\0') {
