@@ -72,16 +72,21 @@ get fit with their own surface brightness ratio J_1 and consequently
 also have their own light ratios.  The options after the , are roughly
 as follows:
 
-,[number]         specify exposure time in seconds, doing so triggers
-                  integration of the model over this exposure time,
-                  assuming the given times are midpoint times.  This
-                  is not yet supported in the modified program and is
-                  currently ignored.  It is not really necessary for
-                  most ground-based data.
-
 air (or fitair)   fit an extinction term "k_n*(X-1)" for this LC
 cm (or fitcm)     MEarth-specific ("common mode" correction)
 err (or fiterr)   fit for (multiplicative) error inflation factor s_n
+
+texp              integrate the model over exposure times taken from
+                  the input files.  For RVs, these are given in an
+                  extra 4th column after the uncertainty, and for
+                  light curves they are taken from the standard column
+                  in the "new" format.  Note that the "corrected" and
+                  RV plots show data corrected for the exposure time
+                  rather than correcting the model.  This peculiar
+                  behavior was chosen because RVs can and often do
+                  have different exposure times per data point so we
+                  can't necessarily plot an oversampled model with a
+                  single exposure time.
 
 useair            use the extinction term fit to the first light curve
                   in this filter to correct this light curve, rather

@@ -40,8 +40,8 @@ lc1=clay-20100607.lc,air,err
 lc1=clay-20101008.lc,air,err  
 lc1=clay-20101118.lc,air,err  
 lc1=clay-20101229.lc,air,err  
-rv1=lspm1112+7626.rv1,4800,err=0.12,wt    # input files RV
-rv2=lspm1112+7626.rv2,4800,err=0.24,wt  
+rv1=lspm1112+7626.rv1,err=0.12,wt    # input files RV
+rv2=lspm1112+7626.rv2,err=0.24,wt  
 lrat=lspm1112+7626.lrat                   # spectroscopic light ratio
 EOD
 
