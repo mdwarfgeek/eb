@@ -242,7 +242,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
 	v[iparm] = 1.0;  /* scale factor for LCs */
 	vary[iparm] = 2;
 	snprintf(vnames[iparm], PARNAME_MAX, "s_%d", idat+1);
-	strncpy(vunits[iparm], "mag", PARNAME_MAX);
+	strncpy(vunits[iparm], "", PARNAME_MAX);
 
 	vscl[iparm] = 1.0;
 	voff[iparm] = 0;
