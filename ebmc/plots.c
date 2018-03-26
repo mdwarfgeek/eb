@@ -10,8 +10,7 @@
 
 #include <cpgplot.h>
 
-#define LCEXPAND    0.2
-#define RESIDEXPAND 0.75
+#define RVEXPAND 0.75
 
 void init_plots (char *pgdev) {
   cpgopen(pgdev);
@@ -26,6 +25,7 @@ void close_plots (void) {
 int do_plots (struct fit_parms *par,
 	      FILE *ofp,
               char **filtnamelist, int nfiltname,
+              int novertsep,
               char *errstr) {
   struct fit_data *dlist;
   int ndata;
@@ -77,10 +77,28 @@ int do_plots (struct fit_parms *par,
   char ttlist[10][64];
   int ii;
 
+  float lcexpand    = 0.20;
+  float residexpand = 0.75;
+  int phasefold;
+
   dlist = par->dlist;
   ndata = par->ndata;
   v = par->vinit;
 
+  /* Stack vertically or simply combine? */
+  if(novertsep) {
+    lcexpand = 0;
+    residexpand = 0;
+  }
+
+  /* Decide if we should plot phase-folded by default based on
+     rotation parameters */
+  if(v[EB_PAR_ROT1] == 1.0 &&
+     v[EB_PAR_ROT2] == 1.0)
+    phasefold = 1;
+  else
+    phasefold = 0;
+  
   /* Contact points and eclipse durations */
   eb_phicont(v[EB_PAR_ESINW], v[EB_PAR_ECOSW],
              v[EB_PAR_COSI], v[EB_PAR_RASUM],
@@ -271,6 +289,13 @@ int do_plots (struct fit_parms *par,
 
       phifold = x - floor(x);
 
+      if(dlist[idat].obstype == OBS_RV) {
+        if(y < rvmin)
+          rvmin = y;
+        if(y > rvmax)
+          rvmax = y;
+      }
+
       /* Skip eclipses if data have none */
       if(dlist[idat].obstype != OBS_LC || ieclall || !iecl[i]) {
 	if(ynotdone || y < ymin)
@@ -298,8 +323,24 @@ int do_plots (struct fit_parms *par,
       }
     }
     
-    xmin -= 0.05*(xmax-xmin);
-    xmax += 0.05*(xmax-xmin);
+    /* If plots are phase-folded, range is always the same */
+    if(phasefold) {
+      if(dlist[idat].obstype == OBS_LC) {
+        xmin = -0.25;
+        xmax = 0.75;
+      }
+      else {
+        xmin = 0.0;
+        xmax = 1.0;
+      }
+
+      rvxmin = 0.0;
+      rvxmax = 1.0;
+    }
+    else {
+      xmin -= 0.05*(xmax-xmin);
+      xmax += 0.05*(xmax-xmin);
+    }
 
     tmin -= 0.05*(tmax-tmin);
     tmax += 0.05*(tmax-tmin);
@@ -338,7 +379,7 @@ int do_plots (struct fit_parms *par,
         dlist[idat].corr[meas] = dlist[idat].m[meas] - dlist[idat].corr[meas];
 
       for(meas = 0; meas < dlist[idat].nmeas; meas++) {
-	/* Compute phase */
+	/* Compute delta time */
 	tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
 	
 	x = tmp;
@@ -398,7 +439,11 @@ int do_plots (struct fit_parms *par,
       tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
       phi = tmp / v[EB_PAR_P];
       
-      x = phi;
+      if(phasefold)
+        x = phi - floor(phi-xmin);
+      else
+        x = phi;
+
       y = dlist[idat].y[meas] - yzp;
       
       /* Apply systematics correction */
@@ -493,7 +538,11 @@ int do_plots (struct fit_parms *par,
       tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
       phi = tmp / v[EB_PAR_P];
       
-      x = phi;
+      if(phasefold)
+        x = phi - floor(phi-xmin);
+      else
+        x = phi;
+
       y = dlist[idat].resid[meas];
       y1 = y-errscale(dlist+idat, v, meas);
       y2 = y+errscale(dlist+idat, v, meas);
@@ -580,9 +629,9 @@ int do_plots (struct fit_parms *par,
 
         /* Desired ymax and residmax */
         ymax = MAX(ymax, ymagmax[iplot]
-             + LCEXPAND*(nicyc-1)*yrange);
+             + lcexpand*(nicyc-1)*yrange);
         residmax = MAX(residmax, residmagmax[iplot]
-                 + RESIDEXPAND*(nicyc-1)*residrange);
+                 + residexpand*(nicyc-1)*residrange);
       }
   
     ymin -= 0.05*yrange;
@@ -675,7 +724,7 @@ int do_plots (struct fit_parms *par,
             cyc = rint(tmp / v[EB_PAR_P] - 0.5*xsec) - cycmin;
 	  
             x = phi;
-            y = dlist[idat].y[meas] + LCEXPAND*yrange*icyclist[cyc] - yzp;
+            y = dlist[idat].y[meas] + lcexpand*yrange*icyclist[cyc] - yzp;
             y1 = y-errscale(dlist+idat, v, meas);
             y2 = y+errscale(dlist+idat, v, meas);
 	  
@@ -703,7 +752,7 @@ int do_plots (struct fit_parms *par,
               dlist[idat].phitmp[meas] = phi+1;
 
             dlist[idat].ytmp[meas] = dlist[idat].m[meas]
-                                   + LCEXPAND*yrange*icyclist[cyc] - yzp;
+                                   + lcexpand*yrange*icyclist[cyc] - yzp;
           }
 	
           cpgsci(2);
@@ -717,12 +766,14 @@ int do_plots (struct fit_parms *par,
           cpgsci(1);
         }
 
-        for(cyc = cycmin; cyc <= cycmax; cyc++) {
-          if(icyclist[cyc-cycmin] >= 0) {
-            snprintf(lab, sizeof(lab), "%d", cyc);
-            cpgptxt(xmax+0.5*xch,
-                    LCEXPAND*yrange*icyclist[cyc-cycmin]-0.5*ych,
-                    0.0, 0.0, lab);
+        if(!novertsep) {
+          for(cyc = cycmin; cyc <= cycmax; cyc++) {
+            if(icyclist[cyc-cycmin] >= 0) {
+              snprintf(lab, sizeof(lab), "%d", cyc);
+              cpgptxt(xmax+0.5*xch,
+                      lcexpand*yrange*icyclist[cyc-cycmin]-0.5*ych,
+                      0.0, 0.0, lab);
+            }
           }
         }
 
@@ -745,7 +796,7 @@ int do_plots (struct fit_parms *par,
             cyc = rint(tmp / v[EB_PAR_P] - 0.5*xsec) - cycmin;
 	  
             x = phi;
-            y = dlist[idat].y[meas] + LCEXPAND*yrange*icyclist[cyc] - yzp;
+            y = dlist[idat].y[meas] + lcexpand*yrange*icyclist[cyc] - yzp;
 	  
             /* Apply systematics correction */
             y -= dlist[idat].corr[meas];
@@ -788,7 +839,7 @@ int do_plots (struct fit_parms *par,
 
               for(i = 0; i <= 1000; i++) {
                 ly[ntmp] = dly[i]
-                         + LCEXPAND*yrange*icyclist[cyc-cycmin] - yzp;
+                         + lcexpand*yrange*icyclist[cyc-cycmin] - yzp;
                 ntmp++;
               }
 	    
@@ -798,10 +849,12 @@ int do_plots (struct fit_parms *par,
               cpgslw(1);
               cpgsci(1);
 
-              snprintf(lab, sizeof(lab), "%d", cyc);
-              cpgptxt(xmax+0.5*xch,
-                      LCEXPAND*yrange*icyclist[cyc-cycmin]-0.5*ych,
-                      0.0, 0.0, lab);
+              if(!novertsep) {
+                snprintf(lab, sizeof(lab), "%d", cyc);
+                cpgptxt(xmax+0.5*xch,
+                        lcexpand*yrange*icyclist[cyc-cycmin]-0.5*ych,
+                        0.0, 0.0, lab);
+              }
             }
           }
 	
@@ -847,7 +900,7 @@ int do_plots (struct fit_parms *par,
             cyc = rint(tmp / v[EB_PAR_P] - 0.5*xsec) - cycmin;
 	  
             x = phi;
-            y = dlist[idat].resid[meas] + RESIDEXPAND*residrange*icyclist[cyc];
+            y = dlist[idat].resid[meas] + residexpand*residrange*icyclist[cyc];
             y1 = y-errscale(dlist+idat, v, meas);
             y2 = y+errscale(dlist+idat, v, meas);
 	  
@@ -874,7 +927,7 @@ int do_plots (struct fit_parms *par,
             if(icyclist[cyc-cycmin] >= 0) {
               lx[0] = xmin;
               lx[1] = xmax;
-              ly[0] = RESIDEXPAND*residrange*icyclist[cyc-cycmin];
+              ly[0] = residexpand*residrange*icyclist[cyc-cycmin];
               ly[1] = ly[0];
 	    
               cpgsci(2);
@@ -883,10 +936,12 @@ int do_plots (struct fit_parms *par,
               cpgslw(1);
               cpgsci(1);
 
-              snprintf(lab, sizeof(lab), "%d", cyc);
-              cpgptxt(xmax+0.5*xch,
-                      RESIDEXPAND*residrange*icyclist[cyc-cycmin]-0.5*ych,
-                      0.0, 0.0, lab);
+              if(!novertsep) {
+                snprintf(lab, sizeof(lab), "%d", cyc);
+                cpgptxt(xmax+0.5*xch,
+                        residexpand*residrange*icyclist[cyc-cycmin]-0.5*ych,
+                        0.0, 0.0, lab);
+              }
             }
           }
         }
@@ -1313,9 +1368,11 @@ int do_plots (struct fit_parms *par,
     xmin = rvxmin;
     xmax = rvxmax;
     
-    xmin -= 0.05*(rvxmax-rvxmin);
-    xmax += 0.05*(rvxmax-rvxmin);
-    
+    if(!phasefold) {
+      xmin -= 0.05*(rvxmax-rvxmin);
+      xmax += 0.05*(rvxmax-rvxmin);
+    }    
+
     cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+3*vh, vy1+5*vh);
     
     cpgswin(xmin, xmax, ymin, ymax);
@@ -1350,8 +1407,12 @@ int do_plots (struct fit_parms *par,
         /* Compute phase */
         tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
         phi = tmp / v[EB_PAR_P];
-        
-        x = phi;
+
+        if(phasefold)
+          x = phi - floor(phi);
+        else
+          x = phi;
+
         y = dlist[idat].y[meas] - yzp;
 
         /* Apply exposure time correction */
@@ -1413,9 +1474,13 @@ int do_plots (struct fit_parms *par,
         /* Compute phase */
         tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
         phi = tmp / v[EB_PAR_P];
-        
-        x = phi;
-        y = dlist[idat].resid[meas]-RESIDEXPAND*residrange*irv;
+
+        if(phasefold)
+          x = phi - floor(phi);
+        else
+          x = phi;
+
+        y = dlist[idat].resid[meas]-RVEXPAND*residrange*irv;
         y1 = y-errscale(dlist+idat, v, meas);
         y2 = y+errscale(dlist+idat, v, meas);
         
@@ -1432,7 +1497,7 @@ int do_plots (struct fit_parms *par,
     
       lx[0] = xmin;
       lx[1] = xmax;
-      ly[0] = -RESIDEXPAND*residrange*irv;
+      ly[0] = -RVEXPAND*residrange*irv;
       ly[1] = ly[0];
 
       cpgsci(2);
@@ -1445,7 +1510,7 @@ int do_plots (struct fit_parms *par,
       
       snprintf(lab, sizeof(lab), "%d", irv+1);
       cpgptxt(xmax+0.5*xch,
-              -RESIDEXPAND*residrange*irv-0.5*ych,
+              -RVEXPAND*residrange*irv-0.5*ych,
               0.0, 0.0, lab);
       
       irv++;

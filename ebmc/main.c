@@ -35,8 +35,7 @@ static void usage (char *av) {
 	  "\t-f names   Set filter names.  Comma separated list.\n"
 	  "\t-k nsig    Outlier clip data at nsig*1.48*MAD.  (default: 10)\n"
           "\t-o file    Write final parameters to file.\n"
-          "\t-O         Use old light curve format.  (default: new format)\n"
-	  "\t-p pgdev   Plot to PGPLOT device 'pgdev'.  (default: asks)\n\n"
+          "\t-O         Use old light curve format.  (default: new format)\n\n"
 	  "Monte Carlo options:\n"
 	  "\t-l mcfile  Load samples from 'mcfile' and do output.\n"
 	  "\t-m mcfile  Run Monte Carlo, direct samples to 'mcfile'.\n"
@@ -45,7 +44,10 @@ static void usage (char *av) {
 	  "\t-n ntrials Use 'ntrials' Monte Carlo trials.\n"
           "\t           (default: 10,000 for testing - you will want a\n"
           "\t            lot more for a final solution!)\n"
-          "\t-s seed    Set RNG seed\n\n",
+          "\t-s seed    Set RNG seed\n\n"
+          "Plotting options:\n"
+	  "\t-p pgdev   Plot to PGPLOT device 'pgdev'.  (default: asks)\n"
+          "\t-S         Don't separate light curves vertically on plots\n\n",
 	  av);
   exit(1);
 }  
@@ -74,6 +76,7 @@ int main (int argc, char *argv[]) {
 
   char pgdev[1024] = "?";
   int pgdev_set = 0;
+  int novertsep = 0;
 
   char **filtnamelist = (char **) NULL, filtnamebuf[1024];
   int nfiltname = 0;
@@ -119,7 +122,7 @@ int main (int argc, char *argv[]) {
   init_const();
 
   /* Extract command-line arguments */
-  while((c = getopt(argc, argv, "f:k:l:m:n:o:Op:s:")) != -1)
+  while((c = getopt(argc, argv, "f:k:l:m:n:o:Op:s:S")) != -1)
     switch(c) {
     case 'f':
       strncpy(filtnamebuf, optarg, sizeof(filtnamebuf)-1);
@@ -190,6 +193,9 @@ int main (int argc, char *argv[]) {
       if(*ep != '\0' || iseed < 0)
         fatal(1, "invalid seed: %s", optarg);
 
+      break;
+    case 'S':
+      novertsep = 1;
       break;
     case '?':
     default:
@@ -367,6 +373,7 @@ int main (int argc, char *argv[]) {
   /* Plot */
   if(do_plots(&par, ofp,
               filtnamelist, nfiltname,
+              novertsep,
               errstr))
     fatal(1, "do_plots: %s", errstr);
 
