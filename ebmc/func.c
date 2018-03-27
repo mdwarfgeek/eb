@@ -68,7 +68,7 @@ void fit_func (struct fit_parms *par, int id,
                int iphi, int ifull, int icor) {
 
   double *v;
-  int iparm, oparm, meas, ot;
+  int iparm, oparm, meas, ot, inormoff;
   double scl;
 
   unsigned char typ[nmeas];
@@ -152,7 +152,15 @@ void fit_func (struct fit_parms *par, int id,
   /* Compute outputs */
   if(ot == OBS_LC) {
     for(meas = 0; meas < nmeas; meas++) {
-      y[meas] += v[par->dlist[id].pnorm] + par->dlist[id].ymed;
+      if(icor && par->dlist[id].nseg > 0) {  /* segment no. to parameter */
+        assert(par->dlist[id].iseg[meas] >= 0);
+        inormoff = par->dlist[id].segtbl[par->dlist[id].iseg[meas]];
+        assert(inormoff >= 0);
+      }
+      else
+        inormoff = 0;
+
+      y[meas] += v[par->dlist[id].pnorm+inormoff] + par->dlist[id].ymed;
 
       if(icor && par->dlist[id].fitairm)
         y[meas] += v[par->dlist[id].pairm]*(par->dlist[id].airmass[meas]-1.0);

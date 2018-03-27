@@ -450,9 +450,12 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
   float *airmass = (float *) NULL, *cm = (float *) NULL;
   int nmeas = 0;
 
+  int *iseg = (int *) NULL, thisiseg;
+  int *haveseg = (int *) NULL, nhaveseg = 0, iclr, inew;
+
   float thisextinc, thisfwhm, thisell, thisx, thisy, thistheta;
   float thissky, thispeak;
-  int thiss, thisv, thisr, thismerid, thisflag;
+  int thisv, thisr, thismerid, thisflag;
 
   int dotexp = 0;
   float *texp = (float *) NULL;
@@ -524,8 +527,11 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
       magerr = (float *) realloc(magerr, (nmeas+1) * sizeof(float));
       airmass = (float *) realloc(airmass, (nmeas+1) * sizeof(float));
       cm = (float *) realloc(cm, (nmeas+1) * sizeof(float));
+      iseg = (int *) realloc(iseg, (nmeas+1) * sizeof(int));
       texp = (float *) realloc(texp, (nmeas+1) * sizeof(float));
 
+      /* Supply defaults for these */
+      iseg[nmeas] = -1;
       texp[nmeas] = 0.0;
 
       if(oldlc)
@@ -540,7 +546,8 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
                     hjd+nmeas, mag+nmeas, magerr+nmeas,
                     texp+nmeas, &thisextinc, &thisfwhm, &thisell,
                     airmass+nmeas, &thisx, &thisy, &thistheta, &thissky,
-                    &thispeak, &thiss, &thisv, &thisr, &thisflag, cm+nmeas);
+                    &thispeak, iseg+nmeas, &thisv, &thisr, &thisflag,
+                    cm+nmeas);
 
       if(rv < 3) {
 	report_err(errstr, "could not understand: %s", p);
@@ -549,6 +556,26 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
 
       if(hjd[nmeas] < 2400000.5)
 	hjd[nmeas] += 2400000.5;
+
+      /* Make a table to keep track of which segment numbers have data */
+      if(iseg[nmeas] > 0) {
+        thisiseg = iseg[nmeas];
+
+        if(thisiseg+1 > nhaveseg) {
+          /* Allocate extra */
+          haveseg = (int *) realloc(haveseg, (thisiseg+1) * sizeof(int));
+          if(!haveseg)
+            goto error;
+
+          /* Clear new elements */
+          for(iclr = nhaveseg; iclr <= thisiseg; iclr++)
+            haveseg[iclr] = 0;
+
+          nhaveseg = thisiseg+1;
+        }
+
+        haveseg[thisiseg] = 1;
+      }
 
       if(magerr[nmeas] > 0)
 	nmeas++;
@@ -577,6 +604,30 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
   else
     d->texp = (float *) NULL;
 
+  if(haveseg) {
+    /* Renumber segments to ensure gapless when assigning
+       new parameters for individual zero points. */
+    inew = 0;
+
+    for(thisiseg = 0; thisiseg < nhaveseg; thisiseg++) {
+      if(haveseg[thisiseg]) {
+        haveseg[thisiseg] = inew;
+        inew++;
+      }
+      else
+        haveseg[thisiseg] = -1;
+    }
+
+    d->iseg = iseg;
+    d->segtbl = haveseg;
+    d->nseg = inew;
+  }
+  else {
+    d->iseg = (int *) NULL;
+    d->segtbl = (int *) NULL;
+    d->nseg = 0;
+  }
+
   return(0);
 
  error:
@@ -588,8 +639,14 @@ static int read_lc (char *filename, struct fit_data *d, int iband, int oldlc,
     free((void *) magerr);
   if(airmass)
     free((void *) airmass);
+  if(iseg)
+    free((void *) iseg);
+  if(haveseg)
+    free((void *) haveseg);
   if(cm)
     free((void *) cm);
+  if(texp)
+    free((void *) texp);
 
   return(-1);
 }
@@ -735,6 +792,8 @@ static int read_rv (char *filename, struct fit_data *d,
     free((void *) y);
   if(yerr)
     free((void *) yerr);
+  if(texp)
+    free((void *) texp);
   
   return(-1);
 }

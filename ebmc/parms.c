@@ -27,7 +27,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
 
   int ipextra, ifound;
 
-  int idat, meas, nmeastot;
+  int idat, meas, nmeastot, iseg;
 
   int iparm, jparm, nvaryf, nvarym;
   double nvaryflc, nvaryfrv;
@@ -101,7 +101,10 @@ int make_parms (struct fit_parms *par, FILE *ofp,
 
   for(idat = 0; idat < ndata; idat++) {
     if(dlist[idat].obstype == OBS_LC) {
-      nparm++;  /* for zpt */
+      if(dlist[idat].nseg > 0)
+        nparm += dlist[idat].nseg;  /* zpt per segment */
+      else
+        nparm++;  /* for zpt */
 
       if(dlist[idat].fiterr)
 	nparm++;
@@ -227,18 +230,35 @@ int make_parms (struct fit_parms *par, FILE *ofp,
 
   for(idat = 0; idat < ndata; idat++) {
     if(dlist[idat].obstype == OBS_LC) {
-      v[iparm] = 1.0e-3;
-      vary[iparm] = 1;
-      snprintf(vnames[iparm], PARNAME_MAX, "z_%d", idat+1);
-      strncpy(vunits[iparm], "mag", PARNAME_MAX);
+      dlist[idat].pnorm = iparm;  /* record this now */
 
-      vscl[iparm] = 1.0;
-      voff[iparm] = 0;
-      vsg[iparm] = 1.0e-3;
+      if(dlist[idat].nseg > 0) {
+        for(iseg = 0; iseg < dlist[idat].nseg; iseg++) {
+          v[iparm] = 1.0e-3;
+          vary[iparm] = 1;
+          snprintf(vnames[iparm], PARNAME_MAX, "z_%d_%d", idat+1, iseg+1);
+          strncpy(vunits[iparm], "mag", PARNAME_MAX);
+          
+          vscl[iparm] = 1.0;
+          voff[iparm] = 0;
+          vsg[iparm] = 1.0e-3;
+          
+          iparm++;
+        }
+      }
+      else {
+        v[iparm] = 1.0e-3;
+        vary[iparm] = 1;
+        snprintf(vnames[iparm], PARNAME_MAX, "z_%d", idat+1);
+        strncpy(vunits[iparm], "mag", PARNAME_MAX);
+        
+        vscl[iparm] = 1.0;
+        voff[iparm] = 0;
+        vsg[iparm] = 1.0e-3;
+        
+        iparm++;
+      }      
 
-      dlist[idat].pnorm = iparm;
-      iparm++;
-      
       if(dlist[idat].fiterr) {
 	v[iparm] = 1.0;  /* scale factor for LCs */
 	vary[iparm] = 2;

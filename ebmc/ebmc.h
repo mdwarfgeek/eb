@@ -40,6 +40,10 @@ struct fit_data {
   int *ipar;       /* parameter no. for priors */
   int nmeas;
 
+  int *iseg;       /* segment number for LCs */
+  int *segtbl;     /* segment to normalization index mapping table */
+  int nseg;        /* number of segments to fit */
+
   int component;   /* component - 0: both, 1: pri, 2: sec */
   int obstype;     /* see eb.h */
   int iband;       /* passband number for LC / light ratio */
