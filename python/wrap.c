@@ -128,6 +128,7 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
 
   if(outarg) {
     Py_DECREF(outarr);
+    Py_INCREF(Py_None);
     return(Py_None);
   }
   else {
