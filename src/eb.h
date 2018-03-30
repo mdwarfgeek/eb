@@ -67,6 +67,7 @@
 /* Flags */
 #define EB_FLAG_REFL 0x01  /* reflection rather than albedo */
 #define EB_FLAG_PHI  0x02  /* phase rather than time */
+#define EB_FLAG_NOEC 0x04  /* disable eclipse calculation */
 
 /* Observation types we can request from the light curve generator. */
 #define EB_OBS_MAG      0  /* magnitude */

@@ -612,7 +612,8 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
       continue;  /* skip rest */
     }
 
-    if(a >= 1 || rr == 0) {  /* no overlap, integrals trivially zero */
+    if(a >= 1 || rr == 0 ||  /* no overlap, integrals trivially zero */
+       (flags & EB_FLAG_NOEC)) {  /* or eclipses disabled */
       area = 0;
       fecl = 0;
       iecl = 0;

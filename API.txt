@@ -369,6 +369,13 @@ EB_FLAG_PHI     2
  Treat the time array as normalized phase, rather than time.  This is
  how the "light" subroutine in JKTEBOP behaves by default.
 
+EB_FLAG_NOEC    4
+
+ Disables the eclipse calculation.  This can be used to calculate what
+ the out of eclipse light would be during times of eclipse (as if the
+ eclipse was not there), e.g. for plotting out of eclipse modulations
+ or removing them.
+
 Model outputs / "observation types" ("typ")
 -------------------------------------------
 
