@@ -65,7 +65,7 @@ void model_resamp (double *parm, double *t, double *ol1, double *ol2,
 void fit_func (struct fit_parms *par, int id,
                double *a,
                double *t, double *y, unsigned char *iecl, int nmeas,
-               int iphi, int ifull, int icor) {
+               int flags, int ifull, int icor) {
 
   double *v;
   int iparm, oparm, meas, ot, inormoff;
@@ -143,11 +143,11 @@ void fit_func (struct fit_parms *par, int id,
   /* Compute model */
   if(par->dlist[id].texp && icor)
     model_resamp(v, t, NULL, NULL, typ, y, iecl,
-                 iphi ? EB_FLAG_PHI : 0, nmeas,
+                 flags, nmeas,
                  par->dlist[id].texp);
   else
     eb_model_dbl(v, t, NULL, NULL, typ, y, iecl,
-                 iphi ? EB_FLAG_PHI : 0, nmeas);
+                 flags, nmeas);
 
   /* Compute outputs */
   if(ot == OBS_LC) {

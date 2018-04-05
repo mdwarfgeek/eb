@@ -281,7 +281,7 @@ int do_plots (struct fit_parms *par,
 
     fit_func(par, idat, NULL,
              dlx, dly, iecl, 1001,
-             1, 1, 0);
+             EB_FLAG_PHI, 1, 0);
 
     for(i = 0; i <= 1000; i++) {
       x = dlx[i];
@@ -468,7 +468,7 @@ int do_plots (struct fit_parms *par,
 
     fit_func(par, idat, NULL,
              dlx, dly, iecl, 1001,
-             1, 1, 0);
+             EB_FLAG_PHI, 1, 0);
 
     for(i = 0; i <= 1000; i++) {
       lx[ntmp] = dlx[i];
@@ -835,7 +835,7 @@ int do_plots (struct fit_parms *par,
  
               fit_func(par, idat, NULL,
                        dlx, dly, iecl, 1001,
-                       1, 1, 0);
+                       EB_FLAG_PHI, 1, 0);
 
               for(i = 0; i <= 1000; i++) {
                 ly[ntmp] = dly[i]
@@ -1040,7 +1040,7 @@ int do_plots (struct fit_parms *par,
 
       fit_func(par, idat, NULL,
                dlx, dly, iecl, 1001,
-               1, 1, 0);
+               EB_FLAG_PHI, 1, 0);
 
       for(i = 0; i <= 1000; i++) {
         x = dlx[i];
@@ -1225,15 +1225,12 @@ int do_plots (struct fit_parms *par,
 
       fit_func(par, idat, NULL,
                dlx, dly, iecl, 1001,
-               1, 1, 0);
+               EB_FLAG_PHI | EB_FLAG_NOEC, 1, 0);
 
       for(i = 0; i <= 1000; i++) {
         lx[ntmp] = dlx[i];
         ly[ntmp] = dly[i] - yzp;
-	
-        /* Skip eclipses */
-        if(!iecl[i])
-          ntmp++;
+        ntmp++;
       }
     
       cpgsci(2);
@@ -1438,7 +1435,7 @@ int do_plots (struct fit_parms *par,
       
       fit_func(par, idat, NULL,
                dlx, dly, NULL, 3001,
-               1, 1, 0);
+               EB_FLAG_PHI, 1, 0);
       
       for(i = 0; i <= 3000; i++) {
         lx[i] = dlx[i];

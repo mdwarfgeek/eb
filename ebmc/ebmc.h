@@ -184,7 +184,7 @@ int do_fit (struct fit_parms *par, int nsigma, FILE *ofp, char *errstr);
 void fit_func (struct fit_parms *par, int id,
                double *a,
                double *t, double *y, unsigned char *iecl, int nmeas,
-               int iphi, int ifull, int icor);
+               int flags, int ifull, int icor);
 
 /* -- mc.c -- */
 
