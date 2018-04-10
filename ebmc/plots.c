@@ -138,8 +138,8 @@ int do_plots (struct fit_parms *par,
     xmaxecl[0] = xpri+0.5*durpri;
   }
   else {
-    xminecl[0] = xminmag[0];
-    xmaxecl[0] = xmaxmag[0];
+    xminecl[0] = xpri;
+    xmaxecl[0] = xpri;
   }
 
   if(dursec > 0) {
@@ -147,8 +147,8 @@ int do_plots (struct fit_parms *par,
     xmaxecl[1] = xsec+0.5*dursec;
   }
   else {
-    xminecl[1] = xminmag[1];
-    xmaxecl[1] = xmaxmag[1];
+    xminecl[1] = xsec;
+    xmaxecl[1] = xsec;
   }
 
   ymagmin[0] = FLT_MAX;
@@ -608,9 +608,9 @@ int do_plots (struct fit_parms *par,
               cyc = rint(tmp / v[EB_PAR_P] - 0.5*xsec) - cycmin;
 
               /* Anything in plot range? */
-              if((phi >= xminmag[iplot] && phi <= xmaxmag[iplot]) ||
-                 (phi-1 >= xminmag[iplot] && phi-1 <= xmaxmag[iplot]) ||
-                 (phi+1 >= xminmag[iplot] && phi+1 <= xmaxmag[iplot]))
+              if((phi >= xminecl[iplot] && phi <= xmaxecl[iplot]) ||
+                 (phi-1 >= xminecl[iplot] && phi-1 <= xmaxecl[iplot]) ||
+                 (phi+1 >= xminecl[iplot] && phi+1 <= xmaxecl[iplot]))
                 icyclist[cyc] = 1;
             }
 
@@ -639,6 +639,9 @@ int do_plots (struct fit_parms *par,
 
     residmin -= 0.05*residrange;
     residmax += 0.05*residrange;
+
+    if(npanel < 2)
+      npanel = 2;  /* plot smaller */
 
     /* Plot magnified LC, each band separately */
     cpgpage();
@@ -964,9 +967,9 @@ int do_plots (struct fit_parms *par,
             cyc = rint(tmp / v[EB_PAR_P] - 0.5*xsec) - cycmin;
 	  
             /* Anything in plot range? */
-            if((phi >= xminmag[iplot] && phi <= xmaxmag[iplot]) ||
-               (phi-1 >= xminmag[iplot] && phi-1 <= xmaxmag[iplot]) ||
-               (phi+1 >= xminmag[iplot] && phi+1 <= xmaxmag[iplot]))
+            if((phi >= xminecl[iplot] && phi <= xmaxecl[iplot]) ||
+               (phi-1 >= xminecl[iplot] && phi-1 <= xmaxecl[iplot]) ||
+               (phi+1 >= xminecl[iplot] && phi+1 <= xmaxecl[iplot]))
               icyclist[cyc] |= (1<<iplot);
           }
 
