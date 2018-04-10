@@ -15,8 +15,8 @@ int make_parms (struct fit_parms *par, FILE *ofp,
   double *v = (double *) NULL, *voff, *vscl, *vsg, *vtmp;
   double *vcov = (double *) NULL;
   int *vary = (int *) NULL;
-  char **vnames = (char **) NULL, **vunits;
-  char *vnamesbuf = (char *) NULL, *vunitsbuf;
+  char **vnames = (char **) NULL, **vunits, **vtexsym;
+  char *vnamesbuf = (char *) NULL, *vunitsbuf, *vtexsymbuf;
   int nparm;
 
   double hjdoff;
@@ -125,8 +125,8 @@ int make_parms (struct fit_parms *par, FILE *ofp,
   v = (double *) malloc(5 * nparm * sizeof(double));
   vcov = (double *) malloc(nparm*nparm * sizeof(double));
   vary = (int *) malloc(nparm * sizeof(int));
-  vnames = (char **) malloc(2 * nparm * sizeof(char *));
-  vnamesbuf = (char *) malloc(2 * nparm * PARNAME_MAX * sizeof(char));
+  vnames = (char **) malloc(3 * nparm * sizeof(char *));
+  vnamesbuf = (char *) malloc(3 * nparm * PARNAME_MAX * sizeof(char));
   pj = (int *) malloc(5 * naddband * sizeof(int));
   pgenairm = (int *) malloc(2 * nband * sizeof(int));
   if(!v || !vcov || !vary || !vnames || !vnamesbuf || !pj) {
@@ -142,6 +142,9 @@ int make_parms (struct fit_parms *par, FILE *ofp,
   vunits = vnames + nparm;
   vunitsbuf = vnamesbuf + nparm * PARNAME_MAX;
 
+  vtexsym = vnames + 2*nparm;
+  vtexsymbuf = vnamesbuf + 2*nparm * PARNAME_MAX;
+
   pldlin1 = pj + naddband;
   pldlin2 = pj + 2*naddband;
   pldnon1 = pj + 3*naddband;
@@ -151,7 +154,8 @@ int make_parms (struct fit_parms *par, FILE *ofp,
 
   for(iparm = 0; iparm < nparm; iparm++) {
     vnames[iparm] = vnamesbuf + iparm * PARNAME_MAX;
-    vunits[iparm] = vunitsbuf + iparm * PARNAME_MAX;  
+    vunits[iparm] = vunitsbuf + iparm * PARNAME_MAX;
+    vtexsym[iparm] = vtexsymbuf + iparm * PARNAME_MAX;
   }
 
   /* Pack master parameter vectors */
@@ -160,6 +164,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
     vary[iparm] = varyfix[iparm];
     strncpy(vnames[iparm], parnames[iparm], PARNAME_MAX);
     strncpy(vunits[iparm], parunits[iparm], PARNAME_MAX);
+    strncpy(vtexsym[iparm], partexsym[iparm], PARNAME_MAX);
 
     vscl[iparm] = 1.0;
     voff[iparm] = 0;
@@ -171,6 +176,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
     vary[iparm] = varyfix[EB_PAR_J];
     snprintf(vnames[iparm], PARNAME_MAX, "J_%d", iaddband+1);
     strncpy(vunits[iparm], parunits[EB_PAR_J], PARNAME_MAX);
+    snprintf(vtexsym[iparm], PARNAME_MAX, "J_{%d}", iaddband+1);
 
     vscl[iparm] = 1.0;
     voff[iparm] = 0;
@@ -183,6 +189,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
     vary[iparm] = varyfix[EB_PAR_LDLIN1];
     snprintf(vnames[iparm], PARNAME_MAX, "mu_1_f%d", iaddband+1);
     strncpy(vunits[iparm], parunits[EB_PAR_LDLIN1], PARNAME_MAX);
+    snprintf(vtexsym[iparm], PARNAME_MAX, "u_1_{{\\rm f}%d}", iaddband+1);
 
     vscl[iparm] = 1.0;
     voff[iparm] = 0;
@@ -195,6 +202,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
     vary[iparm] = varyfix[EB_PAR_LDLIN2];
     snprintf(vnames[iparm], PARNAME_MAX, "mu_2_f%d", iaddband+1);
     strncpy(vunits[iparm], parunits[EB_PAR_LDLIN2], PARNAME_MAX);
+    snprintf(vtexsym[iparm], PARNAME_MAX, "u_2_{{\\rm f}%d}", iaddband+1);
 
     vscl[iparm] = 1.0;
     voff[iparm] = 0;
@@ -207,6 +215,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
     vary[iparm] = varyfix[EB_PAR_LDNON1];
     snprintf(vnames[iparm], PARNAME_MAX, "mup_1_f%d", iaddband+1);
     strncpy(vunits[iparm], parunits[EB_PAR_LDNON1], PARNAME_MAX);
+    snprintf(vtexsym[iparm], PARNAME_MAX, "u'_1_{{\\rm f}%d}", iaddband+1);
 
     vscl[iparm] = 1.0;
     voff[iparm] = 0;
@@ -219,6 +228,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
     vary[iparm] = varyfix[EB_PAR_LDNON2];
     snprintf(vnames[iparm], PARNAME_MAX, "mup_2_f%d", iaddband+1);
     strncpy(vunits[iparm], parunits[EB_PAR_LDNON2], PARNAME_MAX);
+    snprintf(vtexsym[iparm], PARNAME_MAX, "u'_2_{{\\rm f}%d}", iaddband+1);
 
     vscl[iparm] = 1.0;
     voff[iparm] = 0;
@@ -238,6 +248,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
           vary[iparm] = 1;
           snprintf(vnames[iparm], PARNAME_MAX, "z_%d_%d", idat+1, iseg+1);
           strncpy(vunits[iparm], "mag", PARNAME_MAX);
+          snprintf(vtexsym[iparm], PARNAME_MAX, "z_{%d,%d}", idat+1, iseg+1);
           
           vscl[iparm] = 1.0;
           voff[iparm] = 0;
@@ -251,6 +262,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
         vary[iparm] = 1;
         snprintf(vnames[iparm], PARNAME_MAX, "z_%d", idat+1);
         strncpy(vunits[iparm], "mag", PARNAME_MAX);
+        snprintf(vtexsym[iparm], PARNAME_MAX, "z_{%d}", idat+1);        
         
         vscl[iparm] = 1.0;
         voff[iparm] = 0;
@@ -264,6 +276,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
 	vary[iparm] = 2;
 	snprintf(vnames[iparm], PARNAME_MAX, "s_%d", idat+1);
 	strncpy(vunits[iparm], "", PARNAME_MAX);
+	snprintf(vtexsym[iparm], PARNAME_MAX, "s_{%d}", idat+1);
 
 	vscl[iparm] = 1.0;
 	voff[iparm] = 0;
@@ -277,6 +290,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
 	vary[iparm] = 1;
 	snprintf(vnames[iparm], PARNAME_MAX, "k_%d", idat+1);
 	strncpy(vunits[iparm], "mag/airmass", PARNAME_MAX);
+	snprintf(vtexsym[iparm], PARNAME_MAX, "k_{%d}", idat+1);
 
 	vscl[iparm] = 1.0;
 	voff[iparm] = 0;
@@ -296,6 +310,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
 	vary[iparm] = 1;
 	snprintf(vnames[iparm], PARNAME_MAX, "c_%d", idat+1);
 	strncpy(vunits[iparm], "", PARNAME_MAX);
+	snprintf(vtexsym[iparm], PARNAME_MAX, "c_{%d}", idat+1);
 
 	vscl[iparm] = 1.0;
 	voff[iparm] = 0;
@@ -317,6 +332,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
 	vary[iparm] = 2;
 	snprintf(vnames[iparm], PARNAME_MAX, "s_%d", idat+1);
 	strncpy(vunits[iparm], "km/s", PARNAME_MAX);
+	snprintf(vtexsym[iparm], PARNAME_MAX, "s_{%d}", idat+1);
 
 	vscl[iparm] = 1.0;
 	voff[iparm] = 0;
@@ -424,6 +440,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
 
   par->vnames = vnames;
   par->vunits = vunits;
+  par->vtexsym = vtexsym;
 
   par->ldtype = ldtype;
 

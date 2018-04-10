@@ -104,6 +104,7 @@ struct fit_parms {
 
   char **vnames;
   char **vunits;
+  char **vtexsym;
 
   int *ldtype;
 
@@ -136,6 +137,7 @@ struct fit_pset_entry {
 /* Global lists of parameter names, units and default rms */
 extern char *parnames[NPARFIX];
 extern char *parunits[NPARFIX];
+extern char *partexsym[NPARFIX];
 extern double default_sigguess[NPARFIX];
 
 /* Inline functions for error scaling */
@@ -188,10 +190,10 @@ void fit_func (struct fit_parms *par, int id,
 
 /* -- mc.c -- */
 
-int do_mc (struct fit_parms *par, FILE *ofp,
+int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
            char *filename, int nsim, int iseed, char *errstr);
 
-int read_mc (struct fit_parms *par, FILE *ofp,
+int read_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
              char **mcfilelist, int nmcfile,
              char *errstr);
 

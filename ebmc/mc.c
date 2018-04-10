@@ -14,7 +14,7 @@ static inline int ooeok (double *v, int sec);
 static int mc_out (struct fit_parms *par, double *ainit,
                    double *mc_res, double *mc_der, int nalloc, int nsimd,
                    double *abest, double *vderbest,
-                   FILE *ofp, char *errstr) {
+                   FILE *ofp, FILE *tfp, char *errstr) {
   double *vinit;
 
   double *mc_ptr;
@@ -26,10 +26,14 @@ static int mc_out (struct fit_parms *par, double *ainit,
 
   char **anames = (char **) NULL;
 
-  int ivparm, iaparm;
+  int ivparm, iaparm, ndp;
+  double med, err;
 
   double theomega, domega;
   int isimd;
+
+  char parstr[PARNAME_MAX];
+  char *unit;
 
   vinit = par->vinit;
 
@@ -42,13 +46,24 @@ static int mc_out (struct fit_parms *par, double *ainit,
     goto error;
   }
 
+#ifdef ASYMM
   /* Set up desired percentiles */
   ind[0] = 0.1585 * nsimd;
   ind[1] = 0.5    * nsimd;
   ind[2] = 0.8415 * nsimd;
+#else
+  /* "New" way of doing it.  Analysis assumes nsimd is very large
+     so the fractional samples we neglect don't matter. */
+  ind[0] = 0.5    * nsimd;
+  ind[1] = 0.683  * nsimd;
+#endif
 
   /* Begin output */
-  tprintf(ofp, "Parameters:\n");
+  tprintf(ofp, "MC parameters:\n");
+  fprintf(tfp,
+          "\\hline\n"
+          "MC parameters\\\\\n"
+          "\\hline\n");
 
   for(ivparm = 0, iaparm = 0; ivparm < par->nparm; ivparm++)
     if(par->vary[ivparm] == 1 || par->vary[ivparm] == 2) {
@@ -57,6 +72,7 @@ static int mc_out (struct fit_parms *par, double *ainit,
 
       perc = &(aperc[3*iaparm]);
 
+#ifdef ASYMM
       dmultquickselect(mc_tmp, nsimd,
                        ind, 3,
                        perc);
@@ -66,6 +82,50 @@ static int mc_out (struct fit_parms *par, double *ainit,
 	      perc[1]+ainit[iaparm]+(ivparm == EB_PAR_T0 ? par->hjdoff : 0.0),
 	      perc[0]-perc[1],
 	      perc[2]-perc[1]);
+#else
+      med = dquickselect(mc_tmp, ind[0], nsimd);
+
+      for(isimd = 0; isimd < nsimd; isimd++)
+        mc_tmp[isimd] = fabs(mc_tmp[isimd] - med);
+
+      err = dquickselect(mc_tmp, ind[1], nsimd);
+
+      perc[0] = med - err;
+      perc[1] = med;
+      perc[2] = med + err;
+
+      if(err > 0) {
+        ndp = 1 - floor(log10(err));
+        if(ndp < 0)
+          ndp = 0;
+      }
+      else
+        ndp = 0;
+
+      tprintf(ofp,
+	      "%-10s %.*f +/- %.*f\n", par->vnames[ivparm],
+              ndp < 6 ? 6 : ndp,
+	      med+ainit[iaparm]+(ivparm == EB_PAR_T0 ? par->hjdoff : 0.0),
+              ndp < 6 ? 6 : ndp,
+	      err);
+
+      unit = par->vunits[ivparm];
+
+      if(*unit)
+        snprintf(parstr, sizeof(parstr),
+                 "$%s$ (%s)", par->vtexsym[ivparm], unit);
+      else
+        snprintf(parstr, sizeof(parstr),
+                 "$%s$", par->vtexsym[ivparm]);
+      
+      fprintf(tfp,
+              "%-36s & $%.*f \\pm %.*f$ \\\\\n",
+              parstr,
+              ndp,
+              med+ainit[iaparm]+(ivparm == EB_PAR_T0 ? par->hjdoff : 0.0),
+              ndp,
+              err);
+#endif
 
       anames[iaparm] = par->vnames[ivparm];
       iaparm++;
@@ -93,6 +153,11 @@ static int mc_out (struct fit_parms *par, double *ainit,
   if(theomega < 0.0)  /* wrap to conventional range [0,360) */
     theomega += 360.0;
 
+  fprintf(tfp,
+          "\\hline\n"
+          "Derived parameters\\\\\n"
+          "\\hline\n");
+
   for(ivparm = 0; ivparm < EB_NDER; ivparm++) {
     mc_ptr = mc_der+ivparm*nalloc;
     memcpy(mc_tmp, mc_ptr, nsimd * sizeof(double));
@@ -107,6 +172,7 @@ static int mc_out (struct fit_parms *par, double *ainit,
       }
     }
 
+#ifdef ASYMM
     dmultquickselect(mc_tmp, nsimd,
                      ind, 3,
                      perc);
@@ -116,6 +182,56 @@ static int mc_out (struct fit_parms *par, double *ainit,
 	    perc[1]+(ivparm == EB_PAR_TSEC ? par->hjdoff : 0.0),
 	    perc[0]-perc[1],
 	    perc[2]-perc[1]);
+#else
+    med = dquickselect(mc_tmp, ind[0], nsimd);
+
+    for(isimd = 0; isimd < nsimd; isimd++)
+      mc_tmp[isimd] = fabs(mc_tmp[isimd] - med);
+    
+    err = dquickselect(mc_tmp, ind[1], nsimd);
+    
+    perc[0] = med - err;
+    perc[1] = med;
+    perc[2] = med + err;
+
+    if(err > 0) {
+      ndp = 1 - floor(log10(err));
+      if(ndp < 0)
+        ndp = 0;
+    }
+    else
+      ndp = 0;
+
+    tprintf(ofp,
+	    "%-10s %.*f +/- %.*f\n", eb_dernames[ivparm],
+            ndp < 6 ? 6 : ndp,
+	    med+(ivparm == EB_PAR_TSEC ? par->hjdoff : 0.0),
+            ndp < 6 ? 6 : ndp,
+	    err);
+
+    unit = eb_derunits[ivparm];
+
+    if(*unit) {
+      if(!strcmp(unit, "Msol"))
+        unit = "$\\msol$";
+      else if(!strcmp(unit, "Rsol"))
+        unit = "$\\rsol$";
+
+      snprintf(parstr, sizeof(parstr),
+               "$%s$ (%s)", eb_dertexsym[ivparm], unit);
+    }
+    else
+      snprintf(parstr, sizeof(parstr),
+               "$%s$", eb_dertexsym[ivparm]);
+
+    fprintf(tfp,
+	    "%-36s & $%.*f \\pm %.*f$ \\\\\n",
+            parstr,
+            ndp,
+	    med+(ivparm == EB_PAR_TSEC ? par->hjdoff : 0.0),
+            ndp,
+	    err);
+#endif
   }
 
   /* Plots */
@@ -151,7 +267,7 @@ static int mc_out (struct fit_parms *par, double *ainit,
 }
 
 /* This first due to emacs issues with indentation in "mc" */
-int read_mc (struct fit_parms *par, FILE *ofp,
+int read_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
              char **filelist, int nfiles,
              char *errstr) {
   double *vinit;
@@ -516,7 +632,7 @@ int read_mc (struct fit_parms *par, FILE *ofp,
   if(mc_out(par, ainit,
             mc_res, mc_der, nalloc, nsimd,
             abest, vderbest,
-            ofp, errstr))
+            ofp, tfp, errstr))
      goto error;
 
   free((void *) ainit);
@@ -562,7 +678,7 @@ were accepted.
 
 #define EPS 1.0e-100
 
-int do_mc (struct fit_parms *par, FILE *ofp,
+int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
            char *filename, int nsim, int iseed, char *errstr) {
   struct fit_data *dlist;
   int ndata;
@@ -1123,7 +1239,7 @@ int do_mc (struct fit_parms *par, FILE *ofp,
   if(mc_out(par, ainit,
             mc_res, mc_der, nsim, nsimd,
             abest, vderbest,
-            ofp, errstr))
+            ofp, tfp, errstr))
     goto error;
 
   free((void *) ainit);

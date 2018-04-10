@@ -3,6 +3,7 @@
 /* Names and units, extended vectors including radial velocity */
 char *parnames[NPARFIX];
 char *parunits[NPARFIX];
+char *partexsym[NPARFIX];
 
 /* Initial guesses at standard deviation of parameters.  This is used
  * to initialize the covariance matrix in fitting mode 2, when the
@@ -55,6 +56,8 @@ double default_sigguess[NPARFIX] = {
 static char *name_ktot = "K_1+K_2";
 static char *name_gamma = "gamma";
 static char *km_per_sec = "km/s";
+static char *texsym_ktot = "(K_1+K_2)";
+static char *texsym_gamma = "\\gamma";
 
 void init_const (void) {
   int i;
@@ -62,6 +65,7 @@ void init_const (void) {
   for(i = 0; i < EB_NPAR; i++) {
     parnames[i] = eb_parnames[i];
     parunits[i] = eb_parunits[i];
+    partexsym[i] = eb_partexsym[i];
   }
 
   parnames[PAR_KTOT] = name_ktot;
@@ -69,5 +73,8 @@ void init_const (void) {
 
   parunits[PAR_KTOT] = km_per_sec;
   parunits[PAR_GAMMA] = km_per_sec;
+
+  partexsym[PAR_KTOT] = texsym_ktot;
+  partexsym[PAR_GAMMA] = texsym_gamma;
 }
 

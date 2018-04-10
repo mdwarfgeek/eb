@@ -65,7 +65,7 @@ int main (int argc, char *argv[]) {
 
   int dofit = 1;
 
-  char mcfile[1024], outfile[1024];
+  char mcfile[1024], outfile[1024], texfile[1024];
   char **mcfilelist = (char **) NULL;
   int domc = 0;
   int nmc = 10000;
@@ -82,6 +82,7 @@ int main (int argc, char *argv[]) {
   int nfiltname = 0;
 
   FILE *ofp = (FILE *) NULL;
+  FILE *tfp = (FILE *) NULL;
 
   int nsigma = 10;
   int iseed = 42;
@@ -163,6 +164,7 @@ int main (int argc, char *argv[]) {
       if(!pgdev_set)
 	snprintf(pgdev, sizeof(pgdev), "%s.ps/cps", optarg);
       snprintf(outfile, sizeof(outfile), "%s.out", optarg);
+      snprintf(texfile, sizeof(texfile), "%s.tex", optarg);
       domc = 1;
 
       break;
@@ -314,14 +316,20 @@ int main (int argc, char *argv[]) {
   }
 
   if(domc == 1) {
+    tfp = fopen(texfile, "w");
+    if(!tfp)
+      error(1, "open: %s", texfile);
+
     /* Now MC */
-    if(do_mc(&par, ofp,
+    if(do_mc(&par, ofp, tfp,
              mcfile, nmc, iseed, errstr))
       fatal(1, "do_mc: %s", errstr);
+
+    fclose(tfp);
   }
   else if(domc == -1) {
     /* Read MC */
-    if(read_mc(&par, ofp,
+    if(read_mc(&par, ofp, (FILE *) NULL,
                mcfilelist, nmcfile, errstr))
       fatal(1, "read_mc: %s", errstr);
   }
