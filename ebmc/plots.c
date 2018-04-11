@@ -25,7 +25,7 @@ void close_plots (void) {
 int do_plots (struct fit_parms *par,
 	      FILE *ofp,
               char **filtnamelist, int nfiltname,
-              int novertsep,
+              int noraw, int novertsep,
               char *errstr) {
   struct fit_data *dlist;
   int ndata;
@@ -697,94 +697,107 @@ int do_plots (struct fit_parms *par,
 
         xmin = xminmag[iplot];
         xmax = xmaxmag[iplot];
-      
-        cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+3*vh, vy1+5*vh);
-      
-        cpgswin(xmin, xmax, ymax, ymin);
-        cpgbox("BCST", 0.0, 0, "BCNST", 0.0, 0);
 
-        snprintf(lab, sizeof(lab),
-                 "\\gD%s",
-                 iband >= nfiltname ? "Mag" : filtnamelist[iband]);
-        cpglab("", lab, "");
-      
-        cpgqcs(4, &xch, &ych);
+        if(!noraw) {
+          cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+3*vh, vy1+5*vh);
+          
+          cpgswin(xmin, xmax, ymax, ymin);
+          cpgbox("BCST", 0.0, 0, "BCNST", 0.0, 0);
+          
+          snprintf(lab, sizeof(lab),
+                   "\\gD%s",
+                   iband >= nfiltname ? "Mag" : filtnamelist[iband]);
+          cpglab("", lab, "");
+          
+          cpgqcs(4, &xch, &ych);
 
-        for(idat = 0; idat < ndata; idat++) {
-          if(dlist[idat].obstype == OBS_LC && dlist[idat].iband == iband)
-            yzp = v[dlist[idat].pnorm] + dlist[idat].ymed;  /* subtract zp */
-          else
-            continue;
-	
-          fit_func(par, idat, NULL,
-                   dlist[idat].hjd, dlist[idat].m, NULL, dlist[idat].nmeas,
-                   0, 1, 1);
-
-          for(meas = 0; meas < dlist[idat].nmeas; meas++) {
-            /* Compute phase */
-            tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
-            phi = tmp / v[EB_PAR_P] - floor(tmp / v[EB_PAR_P]);
-            cyc = rint(tmp / v[EB_PAR_P] - 0.5*xsec) - cycmin;
-	  
-            x = phi;
-            y = dlist[idat].y[meas] + lcexpand*yrange*icyclist[cyc] - yzp;
-            y1 = y-errscale(dlist+idat, v, meas);
-            y2 = y+errscale(dlist+idat, v, meas);
-	  
-            if(!dlist[idat].iflag[meas])
-              cpgsci(2);
-	
-            //cpgpt(1, &x, &y, 2);
-            cpgerry(1, &x, &y1, &y2, 1);
-	  
-            x = phi-1.0;
-            //cpgpt(1, &x, &y, 2);
-            cpgerry(1, &x, &y1, &y2, 1);
-	  
-            x = phi+1.0;
-            //cpgpt(1, &x, &y, 2);
-            cpgerry(1, &x, &y1, &y2, 1);
-	  
-            cpgsci(1);
-	  
-            if(phi >= xminmag[iplot] && phi <= xmaxmag[iplot])
-              dlist[idat].phitmp[meas] = phi;
-            else if(phi-1 >= xminmag[iplot] && phi-1 <= xmaxmag[iplot])
-              dlist[idat].phitmp[meas] = phi-1;
+          for(idat = 0; idat < ndata; idat++) {
+            if(dlist[idat].obstype == OBS_LC && dlist[idat].iband == iband)
+              yzp = v[dlist[idat].pnorm] + dlist[idat].ymed;  /* subtract zp */
             else
-              dlist[idat].phitmp[meas] = phi+1;
+              continue;
+            
+            fit_func(par, idat, NULL,
+                     dlist[idat].hjd, dlist[idat].m, NULL, dlist[idat].nmeas,
+                     0, 1, 1);
+            
+            for(meas = 0; meas < dlist[idat].nmeas; meas++) {
+              /* Compute phase */
+              tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
+              phi = tmp / v[EB_PAR_P] - floor(tmp / v[EB_PAR_P]);
+              cyc = rint(tmp / v[EB_PAR_P] - 0.5*xsec) - cycmin;
+              
+              x = phi;
+              y = dlist[idat].y[meas] + lcexpand*yrange*icyclist[cyc] - yzp;
+              y1 = y-errscale(dlist+idat, v, meas);
+              y2 = y+errscale(dlist+idat, v, meas);
+              
+              if(!dlist[idat].iflag[meas])
+                cpgsci(2);
+              
+              //cpgpt(1, &x, &y, 2);
+              cpgerry(1, &x, &y1, &y2, 1);
+              
+              x = phi-1.0;
+              //cpgpt(1, &x, &y, 2);
+              cpgerry(1, &x, &y1, &y2, 1);
+              
+              x = phi+1.0;
+              //cpgpt(1, &x, &y, 2);
+              cpgerry(1, &x, &y1, &y2, 1);
+              
+              cpgsci(1);
+              
+              if(phi >= xminmag[iplot] && phi <= xmaxmag[iplot])
+                dlist[idat].phitmp[meas] = phi;
+              else if(phi-1 >= xminmag[iplot] && phi-1 <= xmaxmag[iplot])
+                dlist[idat].phitmp[meas] = phi-1;
+              else
+                dlist[idat].phitmp[meas] = phi+1;
+              
+              dlist[idat].ytmp[meas] = dlist[idat].m[meas]
+                                     + lcexpand*yrange*icyclist[cyc] - yzp;
+            }
+            
+            cpgsci(2);
+            cpgslw(4);
+            cpgqch(&ch);
+            cpgsch(0.75*ch);
+            //cpgline(dlist[idat].nmeas, dlist[idat].phitmp, dlist[idat].ytmp);
+            cpgpt(dlist[idat].nmeas, dlist[idat].phitmp, dlist[idat].ytmp, 17);
+            cpgsch(ch);
+            cpgslw(1);
+            cpgsci(1);
 
-            dlist[idat].ytmp[meas] = dlist[idat].m[meas]
-                                   + lcexpand*yrange*icyclist[cyc] - yzp;
-          }
-	
-          cpgsci(2);
-          cpgslw(4);
-          cpgqch(&ch);
-          cpgsch(0.75*ch);
-          //cpgline(dlist[idat].nmeas, dlist[idat].phitmp, dlist[idat].ytmp);
-          cpgpt(dlist[idat].nmeas, dlist[idat].phitmp, dlist[idat].ytmp, 17);
-          cpgsch(ch);
-          cpgslw(1);
-          cpgsci(1);
-        }
-
-        if(!novertsep) {
-          for(cyc = cycmin; cyc <= cycmax; cyc++) {
-            if(icyclist[cyc-cycmin] >= 0) {
-              snprintf(lab, sizeof(lab), "%d", cyc);
-              cpgptxt(xmax+0.5*xch,
-                      lcexpand*yrange*icyclist[cyc-cycmin]-0.5*ych,
-                      0.0, 0.0, lab);
+            if(!novertsep) {
+              for(cyc = cycmin; cyc <= cycmax; cyc++) {
+                if(icyclist[cyc-cycmin] >= 0) {
+                  snprintf(lab, sizeof(lab), "%d", cyc);
+                  cpgptxt(xmax+0.5*xch,
+                          lcexpand*yrange*icyclist[cyc-cycmin]-0.5*ych,
+                          0.0, 0.0, lab);
+                }
+              }
             }
           }
         }
 
-        cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+vh, vy1+3*vh);
-      
+        if(noraw)
+          cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+3*vh, vy1+5*vh);
+        else
+          cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+vh, vy1+3*vh);
+
         cpgswin(xmin, xmax, ymax, ymin);
         cpgbox("BCST", 0.0, 0, "BCNST", 0.00, 0);
-        cpglab("", "Corrected", "");
+
+        if(noraw) {
+          snprintf(lab, sizeof(lab),
+                   "\\gD%s",
+                   iband >= nfiltname ? "Mag" : filtnamelist[iband]);
+          cpglab("", lab, "");
+        }
+        else
+          cpglab("", "Corrected", "");
       
         for(idat = 0; idat < ndata; idat++) {
           if(dlist[idat].obstype == OBS_LC && dlist[idat].iband == iband)
@@ -884,7 +897,10 @@ int do_plots (struct fit_parms *par,
           }
         }
       
-        cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1, vy1+vh);
+        if(noraw)
+          cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+2*vh, vy1+3*vh);
+        else
+          cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1, vy1+vh);
       
         cpgswin(xmin, xmax, residmax, residmin);
         cpgbox("1BCNST", 0.0, 0, "BCNST", 0.0, 0);
@@ -950,6 +966,226 @@ int do_plots (struct fit_parms *par,
         }
 
         ipanel++;
+      }
+    }
+
+    /* Combined, phase folded plot (for now, not vertically separated) */
+    if(phasefold) {
+      for(iband = 0; iband < par->nband; iband++) {
+        xmin = -0.25;
+        xmax =  0.75;
+        ymin = FLT_MAX;
+        ymax = -FLT_MAX;
+        ynotdone = 1;
+      
+        for(idat = 0; idat < ndata; idat++) {
+          if(dlist[idat].obstype == OBS_LC &&
+             dlist[idat].iband == iband)
+            yzp = v[dlist[idat].pnorm] + dlist[idat].ymed;  /* subtract off zpt */
+          else
+            continue;
+          
+          for(meas = 0; meas < dlist[idat].nmeas; meas++) {
+            /* If data point included... */
+            if(dlist[idat].iflag[meas]) {
+              /* Accumulate y-range */
+              y1 = dlist[idat].y[meas]-errscale(dlist+idat, v, meas)-yzp;
+              y2 = dlist[idat].y[meas]+errscale(dlist+idat, v, meas)-yzp;
+              
+              if(ynotdone || y1 < ymin)
+                ymin = y1;
+              if(ynotdone || y2 > ymax)
+                ymax = y2;
+              
+              ynotdone = 0;
+            }
+          }
+          
+          /* Compute model and expand y-range if needed */
+          samp = 1.0 / 1000;
+          for(i = 0; i <= 1000; i++)
+            dlx[i] = samp*i;
+          
+          fit_func(par, idat, NULL,
+                   dlx, dly, iecl, 1001,
+                   EB_FLAG_PHI, 1, 0);
+          
+          for(i = 0; i <= 1000; i++) {
+            y = dly[i] - yzp;
+            
+            if(ynotdone || y < ymin)
+              ymin = y;
+            if(ynotdone || y > ymax)
+              ymax = y;
+            
+            ynotdone = 0;
+          }
+        }
+
+        cpgpage();
+        cpgvstd();
+        cpgqvp(0, &vx1, &vx2, &vy1, &vy2);
+        cpgsch(powf(npanel, -1.0/3.0));  /* same size as before */
+        cpgqcs(0, &vxch, &vych);
+        vpad = 3*vxch;
+        
+        vh = (vy2 - vy1) / 5;
+        vw = (vx2 - vx1) / 1;
+        
+        yrange = ymax - ymin;
+        ymin -= 0.05*yrange;
+        ymax += 0.05*yrange;
+        
+        cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+3*vh, vy1+5*vh);
+        cpgswin(xmin, xmax, ymax, ymin);
+        cpgbox("BCST", 0.0, 0, "BCNST", 0.00, 0);
+        
+        snprintf(lab, sizeof(lab),
+                 "\\gD%s",
+                 iband >= nfiltname ?
+                 "Mag" :
+                 filtnamelist[iband]);
+        
+        cpglab("", lab, "");
+    
+        ntmp = 0;
+
+        for(idat = 0; idat < ndata; idat++) {
+          if(dlist[idat].obstype == OBS_LC &&
+             dlist[idat].iband == iband)
+            yzp = v[dlist[idat].pnorm] + dlist[idat].ymed;  /* subtract off zpt */
+          else
+            continue;
+
+          /* Full model */
+          fit_func(par, idat, NULL,
+                   dlist[idat].hjd, dlist[idat].m, NULL, dlist[idat].nmeas,
+                   0, 1, 1);
+          
+          /* Model without systematics corrections for each data point */
+          fit_func(par, idat, NULL,
+                   dlist[idat].hjd, dlist[idat].corr, NULL, dlist[idat].nmeas,
+                   0, 1, 0);
+        
+          /* Correction */
+          for(meas = 0; meas < dlist[idat].nmeas; meas++)
+            dlist[idat].corr[meas] = dlist[idat].m[meas] - dlist[idat].corr[meas];
+
+          for(meas = 0; meas < dlist[idat].nmeas; meas++) {
+            /* Compute phase */
+            tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
+            phi = tmp / v[EB_PAR_P];
+            
+            x = phi - floor(phi-xmin);
+            y = dlist[idat].y[meas] - yzp;
+            
+            /* Apply systematics correction */
+            y -= dlist[idat].corr[meas];
+            
+            y1 = y-errscale(dlist+idat, v, meas);
+            y2 = y+errscale(dlist+idat, v, meas);
+            
+            if(!dlist[idat].iflag[meas])
+              cpgsci(2);
+            
+            //cpgpt(1, &x, &y, 2);
+            cpgerry(1, &x, &y1, &y2, 1);
+            
+            cpgsci(1);
+          }
+        
+          samp = (xmax-xmin) / 1000;
+          ntmp = 0;
+          for(i = 0; i <= 1000; i++)
+            dlx[i] = xmin + samp*i;
+          
+          fit_func(par, idat, NULL,
+                   dlx, dly, iecl, 1001,
+                   EB_FLAG_PHI, 1, 0);
+        
+          for(i = 0; i <= 1000; i++) {
+            lx[ntmp] = dlx[i];
+            ly[ntmp] = dly[i] - yzp;
+            ntmp++;
+          }
+        }    
+
+        /* Plot this once only (arbitrarily last dataset but we've
+           corrected them so the models should all be the same). */
+        cpgsci(2);
+        cpgslw(4);
+        cpgline(ntmp, lx, ly);
+        cpgslw(1);
+        cpgsci(1);
+        
+        cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+2*vh, vy1+3*vh);
+        
+        residmin = FLT_MAX;
+        residmax = -FLT_MAX;
+        
+        for(idat = 0; idat < ndata; idat++) {
+          if(dlist[idat].obstype == OBS_LC &&
+             dlist[idat].iband == iband)
+            yzp = v[dlist[idat].pnorm] + dlist[idat].ymed;  /* subtract off zpt */
+          else
+            continue;
+
+          for(meas = 0; meas < dlist[idat].nmeas; meas++) {
+            if(dlist[idat].iflag[meas]) {
+              y1 = dlist[idat].resid[meas]-errscale(dlist+idat, v, meas);
+              y2 = dlist[idat].resid[meas]+errscale(dlist+idat, v, meas);
+              
+              residmin = MIN(y1, residmin);
+              residmax = MAX(y2, residmax);
+            }
+          }
+        }
+        
+        residrange = residmax - residmin;
+        residmin -= 0.05*residrange;
+        residmax += 0.05*residrange;
+        
+        cpgswin(xmin, xmax, residmax, residmin);
+        cpgbox("1BCNST", 0.0, 0, "BCNSTX", 0.0, 0);
+        cpglab("Phase", "Residual", "");
+        
+        for(idat = 0; idat < ndata; idat++) {
+          if(dlist[idat].obstype == OBS_LC &&
+             dlist[idat].iband == iband)
+            yzp = v[dlist[idat].pnorm] + dlist[idat].ymed;  /* subtract off zpt */
+          else
+            continue;
+
+          for(meas = 0; meas < dlist[idat].nmeas; meas++) {
+            /* Compute phase */
+            tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
+            phi = tmp / v[EB_PAR_P];
+            
+            x = phi - floor(phi-xmin);
+            y = dlist[idat].resid[meas];
+            y1 = y-errscale(dlist+idat, v, meas);
+            y2 = y+errscale(dlist+idat, v, meas);
+            
+            if(!dlist[idat].iflag[meas])
+              cpgsci(2);
+            
+            //cpgpt(1, &x, &y, 2);
+            cpgerry(1, &x, &y1, &y2, 1);
+            
+            cpgsci(1);
+          }
+        }
+        
+        lx[0] = xmin;
+        lx[1] = xmax;
+        ly[0] = 0.0;
+        ly[1] = ly[0];
+        
+        cpgsci(2);
+        cpgslw(4);
+        cpgline(2, lx, ly);
+        cpgslw(1);
+        cpgsci(1);
       }
     }
 
@@ -1065,9 +1301,12 @@ int do_plots (struct fit_parms *par,
       cpgpage();
       cpgvstd();
       cpgqvp(0, &vx1, &vx2, &vy1, &vy2);
+      cpgsch(powf(npanel, -1.0/3.0));  /* same size as before */
+      cpgqcs(0, &vxch, &vych);
+      vpad = 3*vxch;
+
       vh = (vy2 - vy1) / 5;
-    
-      cpgsvp(vx1, vx2, vy1+3.1*vh, vy1+5*vh);
+      vw = (vx2 - vx1) / 1;
     
       xmin -= 0.05*(xmax-xmin);
       xmax += 0.05*(xmax-xmin);
@@ -1079,43 +1318,46 @@ int do_plots (struct fit_parms *par,
       ymin -= 0.05*yrange;
       ymax += 0.05*yrange;
     
-      cpgswin(tmin, tmax, ymax, ymin);
-      cpgbox("BCMST", 0.0, 0, "BCNST", 0.0, 0);
-    
-      snprintf(lab, sizeof(lab),
-               "\\gD%s",
-               dlist[idat].iband >= nfiltname ?
-               "Mag" :
-               filtnamelist[dlist[idat].iband]);
-      cpglab("", lab, htlab);
-    
-      /* Mark where we got eclipses */
-      cpgslw(4);
-      for(cyc = 0; cyc < ncyc; cyc++) {
-        if(icyclist[cyc] & 0x01) {
-          /* Primary */
-          lx[0] = v[EB_PAR_P]*(cycmin+cyc);
-          lx[1] = lx[0];
-          ly[0] = ymin;
-          ly[1] = ymin+0.1*(ymax-ymin);
-          cpgarro(lx[0], ly[0], lx[1], ly[1]);
-          ly[0] = ymax;
-          ly[1] = ymax-0.1*(ymax-ymin);
-          cpgarro(lx[0], ly[0], lx[1], ly[1]);
+      if(!noraw) {
+        cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+3.1*vh, vy1+5*vh);
+        cpgswin(tmin, tmax, ymax, ymin);
+        cpgbox("BCMST", 0.0, 0, "BCNST", 0.0, 0);
+        
+        snprintf(lab, sizeof(lab),
+                 "\\gD%s",
+                 dlist[idat].iband >= nfiltname ?
+                 "Mag" :
+                 filtnamelist[dlist[idat].iband]);
+        cpglab("", lab, htlab);
+
+        /* Mark where we got eclipses */
+        cpgslw(4);
+        for(cyc = 0; cyc < ncyc; cyc++) {
+          if(icyclist[cyc] & 0x01) {
+            /* Primary */
+            lx[0] = v[EB_PAR_P]*(cycmin+cyc);
+            lx[1] = lx[0];
+            ly[0] = ymin;
+            ly[1] = ymin+0.1*(ymax-ymin);
+            cpgarro(lx[0], ly[0], lx[1], ly[1]);
+            ly[0] = ymax;
+            ly[1] = ymax-0.1*(ymax-ymin);
+            cpgarro(lx[0], ly[0], lx[1], ly[1]);
+          }
+          if(icyclist[cyc] & 0x02) {
+            /* Secondary */
+            lx[0] = v[EB_PAR_P]*(cycmin+cyc+xsec);
+            lx[1] = lx[0];
+            ly[0] = ymin;
+            ly[1] = ymin+0.1*(ymax-ymin);
+            cpgarro(lx[0], ly[0], lx[1], ly[1]);
+            ly[0] = ymax;
+            ly[1] = ymax-0.1*(ymax-ymin);
+            cpgarro(lx[0], ly[0], lx[1], ly[1]);
+          }
         }
-        if(icyclist[cyc] & 0x02) {
-          /* Secondary */
-          lx[0] = v[EB_PAR_P]*(cycmin+cyc+xsec);
-          lx[1] = lx[0];
-          ly[0] = ymin;
-          ly[1] = ymin+0.1*(ymax-ymin);
-          cpgarro(lx[0], ly[0], lx[1], ly[1]);
-          ly[0] = ymax;
-          ly[1] = ymax-0.1*(ymax-ymin);
-          cpgarro(lx[0], ly[0], lx[1], ly[1]);
-        }
+        cpgslw(1);
       }
-      cpgslw(1);
 
       /* Full model */
       fit_func(par, idat, NULL,
@@ -1131,44 +1373,58 @@ int do_plots (struct fit_parms *par,
       for(meas = 0; meas < dlist[idat].nmeas; meas++)
         dlist[idat].corr[meas] = dlist[idat].m[meas] - dlist[idat].corr[meas];
 
-      for(meas = 0; meas < dlist[idat].nmeas; meas++) {
-        /* Compute phase */
-        tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
-      
-        x = tmp;
-        y = dlist[idat].y[meas]-yzp;
-        y1 = y-errscale(dlist+idat, v, meas);
-        y2 = y+errscale(dlist+idat, v, meas);
-      
-        if(!dlist[idat].iflag[meas])
-          cpgsci(2);
-      
-        //cpgpt(1, &x, &y, 2);
-        cpgerry(1, &x, &y1, &y2, 1);
-      
+      if(!noraw) {
+        for(meas = 0; meas < dlist[idat].nmeas; meas++) {
+          /* Compute phase */
+          tmp = dlist[idat].hjd[meas] - v[EB_PAR_T0];
+          
+          x = tmp;
+          y = dlist[idat].y[meas]-yzp;
+          y1 = y-errscale(dlist+idat, v, meas);
+          y2 = y+errscale(dlist+idat, v, meas);
+          
+          if(!dlist[idat].iflag[meas])
+            cpgsci(2);
+          
+          //cpgpt(1, &x, &y, 2);
+          cpgerry(1, &x, &y1, &y2, 1);
+          
+          cpgsci(1);
+          
+          dlist[idat].phitmp[meas] = tmp;
+          dlist[idat].ytmp[meas] = dlist[idat].m[meas] - yzp;
+        }
+        
+        cpgsci(2);
+        cpgslw(4);
+        cpgqch(&ch);
+        cpgsch(0.75*ch);
+        //cpgline(dlist[idat].nmeas, dlist[idat].phitmp, dlist[idat].ytmp);
+        cpgpt(dlist[idat].nmeas, dlist[idat].phitmp, dlist[idat].ytmp, 17);
+        cpgsch(ch);
+        cpgslw(1);
         cpgsci(1);
-      
-        dlist[idat].phitmp[meas] = tmp;
-        dlist[idat].ytmp[meas] = dlist[idat].m[meas] - yzp;
       }
-    
-      cpgsci(2);
-      cpgslw(4);
-      cpgqch(&ch);
-      cpgsch(0.75*ch);
-      //cpgline(dlist[idat].nmeas, dlist[idat].phitmp, dlist[idat].ytmp);
-      cpgpt(dlist[idat].nmeas, dlist[idat].phitmp, dlist[idat].ytmp, 17);
-      cpgsch(ch);
-      cpgslw(1);
-      cpgsci(1);
 
-      cpgsvp(vx1, vx2, vy1+vh, vy1+2.9*vh);
+      if(noraw)
+        cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+3*vh, vy1+5*vh);
+      else
+        cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+vh, vy1+2.9*vh);
     
       cpgswin(xmin, xmax, ymax, ymin);
       cpgbox("BCST", 0.0, 0, "BCNST", 0.00, 0);
-      cpglab("",
-             dlist[idat].obstype == OBS_LC ? "Corrected" : "RV (km/s)",
-             "");
+
+      if(noraw) {
+        snprintf(lab, sizeof(lab),
+                 "\\gD%s",
+                 dlist[idat].iband >= nfiltname ?
+                 "Mag" :
+                 filtnamelist[dlist[idat].iband]);
+
+        cpglab("", lab, "");
+      }
+      else
+        cpglab("", "Corrected", "");
     
       /* Mark where we got eclipses */
       cpgslw(4);
@@ -1242,7 +1498,10 @@ int do_plots (struct fit_parms *par,
       cpgslw(1);
       cpgsci(1);
     
-      cpgsvp(vx1, vx2, vy1, vy1+vh);
+      if(noraw)
+        cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1+2*vh, vy1+3*vh);
+      else
+        cpgsvp(vx1+2.0*vpad/3.0, vx1+vw-2.0*vpad/3.0, vy1, vy1+vh);
     
       residmin = FLT_MAX;
       residmax = -FLT_MAX;

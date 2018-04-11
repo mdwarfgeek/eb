@@ -214,7 +214,7 @@ void close_plots (void);
 int do_plots (struct fit_parms *par,
 	      FILE *ofp,
               char **filtnamelist, int nfiltname,
-              int novertsep,
+              int noraw, int novertsep,
               char *errstr);
 
 void plot_fried_eggs (double *ainit, char **anames, int nvary,

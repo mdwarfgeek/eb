@@ -47,6 +47,7 @@ static void usage (char *av) {
           "\t-s seed    Set RNG seed\n\n"
           "Plotting options:\n"
 	  "\t-p pgdev   Plot to PGPLOT device 'pgdev'.  (default: asks)\n"
+          "\t-R         Omit raw data panels from light curve plots\n"
           "\t-S         Don't separate light curves vertically on plots\n\n",
 	  av);
   exit(1);
@@ -76,6 +77,7 @@ int main (int argc, char *argv[]) {
 
   char pgdev[1024] = "?";
   int pgdev_set = 0;
+  int noraw = 0;
   int novertsep = 0;
 
   char **filtnamelist = (char **) NULL, filtnamebuf[1024];
@@ -123,7 +125,7 @@ int main (int argc, char *argv[]) {
   init_const();
 
   /* Extract command-line arguments */
-  while((c = getopt(argc, argv, "f:k:l:m:n:o:Op:s:S")) != -1)
+  while((c = getopt(argc, argv, "f:k:l:m:n:o:Op:s:RS")) != -1)
     switch(c) {
     case 'f':
       strncpy(filtnamebuf, optarg, sizeof(filtnamebuf)-1);
@@ -195,6 +197,9 @@ int main (int argc, char *argv[]) {
       if(*ep != '\0' || iseed < 0)
         fatal(1, "invalid seed: %s", optarg);
 
+      break;
+    case 'R':
+      noraw = 1;
       break;
     case 'S':
       novertsep = 1;
@@ -381,7 +386,7 @@ int main (int argc, char *argv[]) {
   /* Plot */
   if(do_plots(&par, ofp,
               filtnamelist, nfiltname,
-              novertsep,
+              noraw, novertsep,
               errstr))
     fatal(1, "do_plots: %s", errstr);
 
