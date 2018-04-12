@@ -12,7 +12,8 @@ static inline int ooeok (double *v, int sec);
 
 /* This is shared and does the output (plots, printed, vector update) */
 static int mc_out (struct fit_parms *par, double *ainit,
-                   double *mc_res, double *mc_der, int nalloc, int nsimd,
+                   double *mc_res, double *mc_der, double *mc_lrat,
+                   int nalloc, int nsimd,
                    double *abest, double *vderbest,
                    FILE *ofp, FILE *tfp, char *errstr) {
   double *vinit;
@@ -35,16 +36,28 @@ static int mc_out (struct fit_parms *par, double *ainit,
   char parstr[PARNAME_MAX];
   char *unit;
 
+  double *lratperc = (double *) NULL;
+  char **lratnames = (char **) NULL;
+  char *lratnamebuf = (char *) NULL;
+  int iband;
+
   vinit = par->vinit;
 
   /* Allocate workspace */
   mc_tmp = (double *) malloc(nsimd * sizeof(double));
   aperc = (double *) malloc(3*par->nvarym * sizeof(double));
   anames = (char **) malloc(par->nvarym * sizeof(char *));
-  if(!mc_tmp || !aperc || !anames) {
+  lratperc = (double *) malloc(3*par->nband * sizeof(double));
+  lratnames = (char **) malloc(par->nband * sizeof(char *));
+  lratnamebuf = (char *) malloc(par->nband * PARNAME_MAX);
+  if(!mc_tmp || !aperc || !anames ||
+     !lratperc || !lratnames || !lratnamebuf) {
     report_syserr(errstr, "malloc");
     goto error;
   }
+
+  for(iband = 0; iband < par->nband; iband++)
+    lratnames[iband] = lratnamebuf + iband * PARNAME_MAX;
 
 #ifdef ASYMM
   /* Set up desired percentiles */
@@ -234,6 +247,60 @@ static int mc_out (struct fit_parms *par, double *ainit,
 #endif
   }
 
+  /* Light ratios */
+  for(iband = 0; iband < par->nband; iband++) {
+    mc_ptr = mc_lrat+iband*nalloc;
+    memcpy(mc_tmp, mc_ptr, nsimd * sizeof(double));
+
+    if(iband)
+      snprintf(lratnames[iband], PARNAME_MAX,
+               "L_2/L_1(%d)", iband);
+    else
+      snprintf(lratnames[iband], PARNAME_MAX,
+               "L_2/L_1");
+
+    perc = lratperc + 3*iband;
+
+#ifdef ASYMM
+    dmultquickselect(mc_tmp, nsimd,
+                     ind, 3,
+                     perc);
+
+    tprintf(ofp,
+	    "%-10s %.6f %.6f +%.6f\n", lratnames[iband],
+	    perc[1]+(ivparm == EB_PAR_TSEC ? par->hjdoff : 0.0),
+	    perc[0]-perc[1],
+	    perc[2]-perc[1]);
+#else
+    med = dquickselect(mc_tmp, ind[0], nsimd);
+
+    for(isimd = 0; isimd < nsimd; isimd++)
+      mc_tmp[isimd] = fabs(mc_tmp[isimd] - med);
+    
+    err = dquickselect(mc_tmp, ind[1], nsimd);
+    
+    perc[0] = med - err;
+    perc[1] = med;
+    perc[2] = med + err;
+
+    if(err > 0) {
+      ndp = 1 - floor(log10(err));
+      if(ndp < 0)
+        ndp = 0;
+    }
+    else
+      ndp = 0;
+
+    tprintf(ofp,
+	    "%-10s %.*f +/- %.*f\n", lratnames[iband],
+            ndp < 6 ? 6 : ndp,
+	    med+(ivparm == EB_PAR_TSEC ? par->hjdoff : 0.0),
+            ndp < 6 ? 6 : ndp,
+	    err);
+#endif
+
+  }
+
   /* Plots */
   plot_fried_eggs(ainit, anames, par->nvarym,
                   mc_res, nalloc, nsimd,
@@ -241,6 +308,9 @@ static int mc_out (struct fit_parms *par, double *ainit,
 
   plot_derived_hist(mc_der, nalloc, nsimd,
                     derperc, vderbest);
+
+  plot_lrat_hist(mc_lrat, par->nband, nalloc, nsimd,
+                 lratperc, lratnames);
 
   /* Update fit parameter vector now */
   for(iaparm = 0; iaparm < par->nvarym; iaparm++)
@@ -252,6 +322,12 @@ static int mc_out (struct fit_parms *par, double *ainit,
   aperc = (double *) NULL;
   free((void *) anames);
   anames = (char **) NULL;
+  free((void *) lratperc);
+  lratperc = (double *) NULL;
+  free((void *) lratnames);
+  lratnames = (char **) NULL;
+  free((void *) lratnamebuf);
+  lratnamebuf = (char *) NULL;
 
   return(0);
 
@@ -262,6 +338,12 @@ static int mc_out (struct fit_parms *par, double *ainit,
     free((void *) aperc);
   if(anames)
     free((void *) anames);
+  if(lratperc)
+    free((void *) lratperc);
+  if(lratnames)
+    free((void *) lratnames);
+  if(lratnamebuf)
+    free((void *) lratnamebuf);
 
   return(-1);
 }
@@ -285,20 +367,27 @@ int read_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
   int nvaryfile;
 
   double *mc_res = (double *) NULL, *mc_der;
+  double *mc_lrat = (double *) NULL;
   int ivparm, iaparm;
 
   double *v = (double *) NULL;
+  double *vltmp = (double *) NULL;
   double *voff = (double *) NULL;
   double vder[EB_NDER], vderbest[EB_NDER];
 
   double bestnlap = 0, nlap;
 
+  double phitmp;
+  unsigned char typtmp;
+  int iband;
+
   vinit = par->vinit;
 
   /* Allocate parameter vector */
   v = (double *) malloc(par->nparm * sizeof(double));
+  vltmp = (double *) malloc(par->nparm * sizeof(double));
   voff = (double *) malloc(par->nparm*nfiles * sizeof(double));
-  if(!v || !voff) {
+  if(!v || !vltmp || !voff) {
     report_syserr(errstr, "malloc");
     goto error;
   }
@@ -482,7 +571,8 @@ int read_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
   nalloc = nsimd;
 
   mc_res = (double *) malloc(nalloc * (par->nvarym+EB_NDER) * sizeof(double));
-  if(!mc_res) {
+  mc_lrat = (double *) malloc(nalloc * par->nband * sizeof(double));
+  if(!mc_res || !mc_lrat) {
     report_syserr(errstr, "malloc");
     goto error;
   }
@@ -607,6 +697,25 @@ int read_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
 	for(ivparm = 0; ivparm < EB_NDER; ivparm++)
 	  mc_der[ivparm*nalloc+isimd] = vder[ivparm];
 
+        /* Light ratios */
+        for(iband = 0; iband < par->nband; iband++) {
+          memcpy(vltmp, v, par->nparm*sizeof(double));
+        
+          if(iband > 0) {
+            vltmp[EB_PAR_J] = v[par->pj[iband-1]];
+            vltmp[EB_PAR_LDLIN1] = v[par->pldlin1[iband-1]];
+            vltmp[EB_PAR_LDLIN2] = v[par->pldlin2[iband-1]];
+            vltmp[EB_PAR_LDNON1] = v[par->pldnon1[iband-1]];
+            vltmp[EB_PAR_LDNON2] = v[par->pldnon2[iband-1]];
+          }
+          
+          phitmp = 0;
+          typtmp = EB_OBS_AVLR;
+          eb_model_dbl(vltmp, &phitmp, NULL, NULL, &typtmp,
+                       mc_lrat + iband*nalloc+isimd,
+                       NULL, 0, 1);
+        }
+
         if(nlap < bestnlap) {
           bestnlap = nlap;
 
@@ -630,7 +739,8 @@ int read_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
 
   /* Now compute and populate parameter vectors */
   if(mc_out(par, ainit,
-            mc_res, mc_der, nalloc, nsimd,
+            mc_res, mc_der, mc_lrat,
+            nalloc, nsimd,
             abest, vderbest,
             ofp, tfp, errstr))
      goto error;
@@ -639,10 +749,14 @@ int read_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
   ainit = (double *) NULL;
   free((void *) v);
   v = (double *) NULL;
+  free((void *) vltmp);
+  vltmp = (double *) NULL;
   free((void *) voff);
   voff = (double *) NULL;
   free((void *) mc_res);
   mc_res = (double *) NULL;
+  free((void *) mc_lrat);
+  mc_lrat = (double *) NULL;
   free((void *) nsimdfile);
   nsimdfile = (int *) NULL;
 
@@ -653,10 +767,14 @@ int read_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
     free((void *) ainit);
   if(v)
     free((void *) v);
+  if(vltmp)
+    free((void *) vltmp);
   if(voff)
     free((void *) voff);
   if(mc_res)
     free((void *) mc_res);
+  if(mc_lrat)
+    free((void *) mc_lrat);
   if(nsimdfile)
     free((void *) nsimdfile);
 
@@ -691,11 +809,12 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
   double *amean, *ameanprev, *ameantmp, *abest;
   double *acov = (double *) NULL, *awork;
 
-  double *v = (double *) NULL, *vtrial;
+  double *v = (double *) NULL, *vltmp, *vtrial;
 
   int ivparm, iaparm, jvparm, japarm;
 
   double *mc_res = (double *) NULL, *mc_der;
+  double *mc_lrat = (double *) NULL;
   double *mc_init = (double *) NULL, sum;
 
   int meas, isim, nburn, ninit, nskip, nsimd, nacc, itmp;
@@ -711,6 +830,10 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
 
   int haveerr;
 
+  double phitmp;
+  unsigned char typtmp;
+  int iband;
+
   dlist = par->dlist;
   ndata = par->ndata;
   vinit = par->vinit;
@@ -725,7 +848,7 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
   /* Allocate parameter vectors for fits */
   ainit = (double *) malloc(8*par->nvarym * sizeof(double));
   acov = (double *) malloc(2*par->nvarym*par->nvarym * sizeof(double));
-  v = (double *) malloc(2*par->nparm * sizeof(double));
+  v = (double *) malloc(3*par->nparm * sizeof(double));
   if(!ainit || !acov || !v) {
     report_syserr(errstr, "malloc");
     goto error;
@@ -742,6 +865,7 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
   awork = acov + par->nvarym*par->nvarym;
 
   vtrial = v + par->nparm;
+  vltmp = v + 2*par->nparm;
 
   /* Pack parameter vectors for fits */
   for(ivparm = 0, iaparm = 0; ivparm < par->nparm; ivparm++)
@@ -805,8 +929,9 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
 
   /* Arrays to store results */
   mc_res = (double *) malloc(nsim * (par->nvarym+EB_NDER) * sizeof(double));
+  mc_lrat = (double *) malloc(nsim * par->nband * sizeof(double));
   mc_init = (double *) malloc(ninit * par->nvarym * sizeof(double));
-  if(!mc_res || !mc_init) {
+  if(!mc_res || !mc_lrat || !mc_init) {
     report_syserr(errstr, "malloc");
     goto error;
   }
@@ -1198,6 +1323,25 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
       for(ivparm = 0; ivparm < EB_NDER; ivparm++)
 	mc_der[ivparm*nsim+nsimd] = vder[ivparm];
 
+      /* Light ratios */
+      for(iband = 0; iband < par->nband; iband++) {
+        memcpy(vltmp, v, par->nparm*sizeof(double));
+        
+        if(iband > 0) {
+          vltmp[EB_PAR_J] = v[par->pj[iband-1]];
+          vltmp[EB_PAR_LDLIN1] = v[par->pldlin1[iband-1]];
+          vltmp[EB_PAR_LDLIN2] = v[par->pldlin2[iband-1]];
+          vltmp[EB_PAR_LDNON1] = v[par->pldnon1[iband-1]];
+          vltmp[EB_PAR_LDNON2] = v[par->pldnon2[iband-1]];
+        }
+        
+        phitmp = 0;
+        typtmp = EB_OBS_AVLR;
+        eb_model_dbl(vltmp, &phitmp, NULL, NULL, &typtmp,
+                     mc_lrat + iband*nsim+nsimd,
+                     NULL, 0, 1);
+      }
+
       /* Accumulate maximum a-posteriori */
       if(nlap < bestnlap) {
 	bestnlap = nlap;
@@ -1237,7 +1381,8 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
 
   /* Call output subroutine */
   if(mc_out(par, ainit,
-            mc_res, mc_der, nsim, nsimd,
+            mc_res, mc_der, mc_lrat,
+            nsim, nsimd,
             abest, vderbest,
             ofp, tfp, errstr))
     goto error;
@@ -1251,6 +1396,8 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
 
   free((void *) mc_res);
   mc_res = (double *) NULL;
+  free((void *) mc_lrat);
+  mc_lrat = (double *) NULL;
 
   return(0);
 
@@ -1263,6 +1410,8 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
     free((void *) v);
   if(mc_res)
     free((void *) mc_res);
+  if(mc_lrat)
+    free((void *) mc_lrat);
 
   return(-1);
 }

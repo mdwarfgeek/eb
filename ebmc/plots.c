@@ -2189,6 +2189,23 @@ void plot_derived_hist (double *mc_der, int nalloc, int nsimd,
   }
 }
 
+void plot_lrat_hist (double *mc_lrat, int nband,
+                     int nalloc, int nsimd,
+                     double *perc, char **names) {
+  int iband;
+  double *mc_ptr;
+
+  for(iband = 0; iband < nband; iband++) {
+    mc_ptr = mc_lrat+iband*nalloc;
+
+    plothist(mc_ptr, nsimd,
+             names[iband], 1, 1, 1,
+             0.0, 1.0,
+             perc + 3*iband,
+	     0.0, 0);
+  }
+}
+
 #else  /* !HAVE_PGPLOT */
 
 /* PGPLOT not available so all plotting functions are no-ops */
@@ -2216,6 +2233,12 @@ void plot_fried_eggs (double *ainit, char **anames, int nvary,
 
 void plot_derived_hist (double *mc_der, int nalloc, int nsimd,
                         double *derperc, double *vderbest) {
+
+}
+
+void plot_lrat_hist (double *mc_lrat, ind nband,
+                     int nalloc, int nsimd,
+                     double *perc, char **names) {
 
 }
 

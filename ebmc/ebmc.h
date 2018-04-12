@@ -224,4 +224,8 @@ void plot_fried_eggs (double *ainit, char **anames, int nvary,
 void plot_derived_hist (double *mc_der, int nalloc, int nsimd,
                         double *derperc, double *vderbest);
 
+void plot_lrat_hist (double *mc_lrat, int nband,
+                     int nalloc, int nsimd,
+                     double *perc, char **names);
+
 #endif  /* EBMC_H */
