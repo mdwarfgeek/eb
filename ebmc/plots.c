@@ -10,7 +10,7 @@
 
 #include <cpgplot.h>
 
-#define RVEXPAND 0.75
+#define RVEXPAND 1.0
 
 void init_plots (char *pgdev) {
   cpgopen(pgdev);
@@ -77,8 +77,8 @@ int do_plots (struct fit_parms *par,
   char ttlist[10][64];
   int ii;
 
-  float lcexpand    = 0.20;
-  float residexpand = 0.75;
+  float lcexpand    = 0.2;
+  float residexpand = 1.0;
   int phasefold;
 
   dlist = par->dlist;
