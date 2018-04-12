@@ -73,10 +73,12 @@ static int mc_out (struct fit_parms *par, double *ainit,
 
   /* Begin output */
   tprintf(ofp, "MC parameters:\n");
-  fprintf(tfp,
-          "\\hline\n"
-          "MC parameters\\\\\n"
-          "\\hline\n");
+
+  if(tfp)
+    fprintf(tfp,
+            "\\hline\n"
+            "MC parameters\\\\\n"
+            "\\hline\n");
 
   for(ivparm = 0, iaparm = 0; ivparm < par->nparm; ivparm++)
     if(par->vary[ivparm] == 1 || par->vary[ivparm] == 2) {
@@ -122,22 +124,24 @@ static int mc_out (struct fit_parms *par, double *ainit,
               ndp < 6 ? 6 : ndp,
 	      err);
 
-      unit = par->vunits[ivparm];
-
-      if(*unit)
-        snprintf(parstr, sizeof(parstr),
-                 "$%s$ (%s)", par->vtexsym[ivparm], unit);
-      else
-        snprintf(parstr, sizeof(parstr),
-                 "$%s$", par->vtexsym[ivparm]);
-      
-      fprintf(tfp,
-              "%-36s & $%.*f \\pm %.*f$ \\\\\n",
-              parstr,
-              ndp,
-              med+ainit[iaparm]+(ivparm == EB_PAR_T0 ? par->hjdoff : 0.0),
-              ndp,
-              err);
+      if(tfp) {
+        unit = par->vunits[ivparm];
+        
+        if(*unit)
+          snprintf(parstr, sizeof(parstr),
+                   "$%s$ (%s)", par->vtexsym[ivparm], unit);
+        else
+          snprintf(parstr, sizeof(parstr),
+                   "$%s$", par->vtexsym[ivparm]);
+        
+        fprintf(tfp,
+                "%-36s & $%.*f \\pm %.*f$ \\\\\n",
+                parstr,
+                ndp,
+                med+ainit[iaparm]+(ivparm == EB_PAR_T0 ? par->hjdoff : 0.0),
+                ndp,
+                err);
+      }
 #endif
 
       anames[iaparm] = par->vnames[ivparm];
@@ -166,10 +170,11 @@ static int mc_out (struct fit_parms *par, double *ainit,
   if(theomega < 0.0)  /* wrap to conventional range [0,360) */
     theomega += 360.0;
 
-  fprintf(tfp,
-          "\\hline\n"
-          "Derived parameters\\\\\n"
-          "\\hline\n");
+  if(tfp)
+    fprintf(tfp,
+            "\\hline\n"
+            "Derived parameters\\\\\n"
+            "\\hline\n");
 
   for(ivparm = 0; ivparm < EB_NDER; ivparm++) {
     mc_ptr = mc_der+ivparm*nalloc;
@@ -222,28 +227,30 @@ static int mc_out (struct fit_parms *par, double *ainit,
             ndp < 6 ? 6 : ndp,
 	    err);
 
-    unit = eb_derunits[ivparm];
-
-    if(*unit) {
-      if(!strcmp(unit, "Msol"))
-        unit = "$\\msol$";
-      else if(!strcmp(unit, "Rsol"))
-        unit = "$\\rsol$";
-
-      snprintf(parstr, sizeof(parstr),
-               "$%s$ (%s)", eb_dertexsym[ivparm], unit);
+    if(tfp) {
+      unit = eb_derunits[ivparm];
+      
+      if(*unit) {
+        if(!strcmp(unit, "Msol"))
+          unit = "$\\msol$";
+        else if(!strcmp(unit, "Rsol"))
+          unit = "$\\rsol$";
+        
+        snprintf(parstr, sizeof(parstr),
+                 "$%s$ (%s)", eb_dertexsym[ivparm], unit);
+      }
+      else
+        snprintf(parstr, sizeof(parstr),
+                 "$%s$", eb_dertexsym[ivparm]);
+      
+      fprintf(tfp,
+              "%-36s & $%.*f \\pm %.*f$ \\\\\n",
+              parstr,
+              ndp,
+              med+(ivparm == EB_PAR_TSEC ? par->hjdoff : 0.0),
+              ndp,
+              err);
     }
-    else
-      snprintf(parstr, sizeof(parstr),
-               "$%s$", eb_dertexsym[ivparm]);
-
-    fprintf(tfp,
-	    "%-36s & $%.*f \\pm %.*f$ \\\\\n",
-            parstr,
-            ndp,
-	    med+(ivparm == EB_PAR_TSEC ? par->hjdoff : 0.0),
-            ndp,
-	    err);
 #endif
   }
 
