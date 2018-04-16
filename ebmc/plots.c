@@ -634,11 +634,11 @@ int do_plots (struct fit_parms *par,
                  + residexpand*(nicyc-1)*residrange);
       }
   
-    ymin -= 0.05*yrange;
-    ymax += 0.05*yrange;
+    ymin -= 0.5*lcexpand*yrange;
+    ymax += 0.5*lcexpand*yrange;
 
-    residmin -= 0.05*residrange;
-    residmax += 0.05*residrange;
+    residmin -= 0.5*residexpand*residrange;
+    residmax += 0.5*residexpand*residrange;
 
     if(npanel < 2)
       npanel = 2;  /* plot smaller */
@@ -654,7 +654,11 @@ int do_plots (struct fit_parms *par,
     vx1 -= vpad;
     vx2 += vpad;
 
-    vh = (vy2 - vy1) / 5;
+    if(noraw)
+      vh = (vy2 - vy1) / 4;
+    else
+      vh = (vy2 - vy1) / 5;
+
     vw = (vx2 - vx1) / npanel;
 
     ipanel = 0;
@@ -783,7 +787,7 @@ int do_plots (struct fit_parms *par,
         }
 
         if(noraw)
-          cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+3*vh, vy1+5*vh);
+          cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+2*vh, vy1+4*vh);
         else
           cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+vh, vy1+3*vh);
 
@@ -898,7 +902,7 @@ int do_plots (struct fit_parms *par,
         }
       
         if(noraw)
-          cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+2*vh, vy1+3*vh);
+          cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1+vh, vy1+2*vh);
         else
           cpgsvp(vx1+ipanel*vw+vpad, vx1+(ipanel+1)*vw-vpad, vy1, vy1+vh);
       
