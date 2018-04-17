@@ -46,10 +46,10 @@ parm[eb.PAR_ESINW]  = -0.54        # esinw
 parm[eb.PAR_P]      = 13.367308    # period
 
 # Simple (but not astronomer friendly) dump of model parameters.
-print "Model parameters:"
+print("Model parameters:")
 
 for name, value, unit in zip(eb.parnames, parm, eb.parunits):
-  print "{0:<10} {1:14.6f} {2}".format(name, value, unit)
+  print("{0:<10} {1:14.6f} {2}".format(name, value, unit))
 
 # Phases of contact points.
 (ps, pe, ss, se) = eb.phicont(parm)
@@ -103,7 +103,7 @@ if do_fit:
   # Fit these ones, perturbed a bit.
   tofit = [eb.PAR_M0, eb.PAR_PHI0, eb.PAR_RASUM, eb.PAR_RR, eb.PAR_COSI]
 
-  print 'Initial guesses:'
+  print("Initial guesses:")
 
   for iparm in tofit:
     # Decide perturbation.  Perturbing zero won't work too well in
@@ -119,9 +119,9 @@ if do_fit:
     initval = numpy.random.normal(parm[iparm], scale=pertur)
 
     # Write out what we're going to use.
-    print "{0:<10} {1:14.6f} {2}".format(eb.parnames[iparm],
+    print("{0:<10} {1:14.6f} {2}".format(eb.parnames[iparm],
                                          initval,
-                                         eb.parunits[iparm])
+                                         eb.parunits[iparm]))
 
     # Set in the problem.
     p.p_value(iparm, parm[iparm], fixed=False)
@@ -134,15 +134,15 @@ if do_fit:
   sol = p.solve()
 
   # Final parameters.
-  print 'Final parameters:'
+  print("Final parameters:")
 
   for iparm in tofit:
-    print "{0:<10} {1:14.6f} +/- {2:8.6f} {3}".format(eb.parnames[iparm],
+    print("{0:<10} {1:14.6f} +/- {2:8.6f} {3}".format(eb.parnames[iparm],
                                                       sol.params[iparm],
                                                       sol.perror[iparm],
-                                                      eb.parunits[iparm])
+                                                      eb.parunits[iparm]))
     
-  print 'chi squared =', sol.fnorm, 'ndof =', sol.ndof
+  print("chi squared = {0:f} ndof = {1:d}".format(sol.fnorm, sol.ndof))
 
   # Model (without weights).
   ymod = eb.model(sol.params, phi, typ, eb.FLAG_PHI)

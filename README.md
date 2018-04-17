@@ -60,10 +60,8 @@ works.
 Python module (directory python)
 --------------------------------
 
-Python >= 2.6  (for test program, module may work with earlier versions)
+Python >= 2.6
 Numpy  >= 1.4  (advised; earlier versions may work)
-
-Python 3 is not yet supported.
 
 Docstrings are embedded in the module, and should (hopefully) be
 sufficient to figure out how to use the Python API in conjunction with

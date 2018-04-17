@@ -77,18 +77,18 @@ parm[eb.PAR_T0]     = 2455290.046183  # T0 (epoch of primary eclipse)
 # similar treatment.
 
 # Simple (but not astronomer friendly) dump of model parameters.
-print "Model parameters:"
+print("Model parameters:")
 
 for name, value, unit in zip(eb.parnames, parm, eb.parunits):
-  print "{0:<10} {1:14.6f} {2}".format(name, value, unit)
+  print("{0:<10} {1:14.6f} {2}".format(name, value, unit))
 
 # Derived parameters.
 vder = eb.getvder(parm, -61.070553, ktot)
 
-print "Derived parameters:"
+print("Derived parameters:")
 
 for name, value, unit in zip(eb.dernames, vder, eb.derunits):
-  print "{0:<10} {1:14.6f} {2}".format(name, value, unit)
+  print("{0:<10} {1:14.6f} {2}".format(name, value, unit))
 
 # Phases of contact points.
 (ps, pe, ss, se) = eb.phicont(parm)

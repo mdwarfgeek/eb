@@ -430,7 +430,25 @@ static PyMethodDef eb_methods[] = {
   { NULL, NULL, 0, NULL }
 };
 
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef eb_mod = {
+  PyModuleDef_HEAD_INIT,
+  "eb",         /* m_name */
+  NULL,         /* m_doc */
+  -1,           /* m_size */
+  eb_methods,   /* m_methods */
+  NULL,         /* m_reload */
+  NULL,         /* m_traverse */
+  NULL,         /* m_clear */
+  NULL,         /* m_free */
+};
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+PyMODINIT_FUNC PyInit_eb (void) {
+#else
 PyMODINIT_FUNC initeb (void) {
+#endif
   PyObject *m, *o, *t;
 
 #define MAKECONST(m) { #m, EB_##m }
@@ -533,9 +551,13 @@ PyMODINIT_FUNC initeb (void) {
   int c, nc;
 
   /* Init module */
+#if PY_MAJOR_VERSION >= 3
+  m = PyModule_Create(&eb_mod);
+#else
   m = Py_InitModule("eb", eb_methods);
+#endif
   if(!m)
-    return;
+    goto error;
 
   /* Import numpy */
   import_array();
@@ -544,7 +566,11 @@ PyMODINIT_FUNC initeb (void) {
   nc = sizeof(iconst) / sizeof(iconst[0]);
 
   for(c = 0; c < nc; c++) {
+#if PY_MAJOR_VERSION >= 3
+    o = PyLong_FromLong(iconst[c].value);
+#else
     o = PyInt_FromLong(iconst[c].value);
+#endif
     if(o)
       PyModule_AddObject(m, iconst[c].name, o);
   }
@@ -561,7 +587,11 @@ PyMODINIT_FUNC initeb (void) {
   o = PyTuple_New(EB_NPAR);
   if(o) {
     for(c = 0; c < EB_NPAR; c++) {
+#if PY_MAJOR_VERSION >= 3
+      t = PyUnicode_FromString(eb_parnames[c]);
+#else
       t = PyString_FromString(eb_parnames[c]);
+#endif
       if(t)
         PyTuple_SetItem(o, c, t);
     }
@@ -571,7 +601,11 @@ PyMODINIT_FUNC initeb (void) {
   o = PyTuple_New(EB_NPAR);
   if(o) {
     for(c = 0; c < EB_NPAR; c++) {
+#if PY_MAJOR_VERSION >= 3
+      t = PyUnicode_FromString(eb_partexsym[c]);
+#else
       t = PyString_FromString(eb_partexsym[c]);
+#endif
       if(t)
         PyTuple_SetItem(o, c, t);
     }
@@ -581,7 +615,11 @@ PyMODINIT_FUNC initeb (void) {
   o = PyTuple_New(EB_NPAR);
   if(o) {
     for(c = 0; c < EB_NPAR; c++) {
+#if PY_MAJOR_VERSION >= 3
+      t = PyUnicode_FromString(eb_parunits[c]);
+#else
       t = PyString_FromString(eb_parunits[c]);
+#endif
       if(t)
         PyTuple_SetItem(o, c, t);
     }
@@ -591,7 +629,11 @@ PyMODINIT_FUNC initeb (void) {
   o = PyTuple_New(EB_NDER);
   if(o) {
     for(c = 0; c < EB_NDER; c++) {
+#if PY_MAJOR_VERSION >= 3
+      t = PyUnicode_FromString(eb_dernames[c]);
+#else
       t = PyString_FromString(eb_dernames[c]);
+#endif
       if(t)
         PyTuple_SetItem(o, c, t);
     }
@@ -601,7 +643,11 @@ PyMODINIT_FUNC initeb (void) {
   o = PyTuple_New(EB_NDER);
   if(o) {
     for(c = 0; c < EB_NDER; c++) {
+#if PY_MAJOR_VERSION >= 3
+      t = PyUnicode_FromString(eb_dertexsym[c]);
+#else
       t = PyString_FromString(eb_dertexsym[c]);
+#endif
       if(t)
         PyTuple_SetItem(o, c, t);
     }
@@ -611,10 +657,24 @@ PyMODINIT_FUNC initeb (void) {
   o = PyTuple_New(EB_NDER);
   if(o) {
     for(c = 0; c < EB_NDER; c++) {
+#if PY_MAJOR_VERSION >= 3
+      t = PyUnicode_FromString(eb_derunits[c]);
+#else
       t = PyString_FromString(eb_derunits[c]);
+#endif
       if(t)
         PyTuple_SetItem(o, c, t);
     }
     PyModule_AddObject(m, "derunits", o);
   }
+
+#if PY_MAJOR_VERSION >= 3
+  return(m);
+
+ error:
+  return(NULL);
+#else
+ error:
+  return;
+#endif
 }
