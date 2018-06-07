@@ -1826,7 +1826,7 @@ int do_plots (struct fit_parms *par,
 
         eb_model_dbl(v, dlx, NULL, NULL, typ, dly, NULL, EB_FLAG_PHI, 1001);
         
-        memcpy(par->vtmp, v, sizeof(par->vtmp));
+        memcpy(par->vtmp, v, par->nparm * sizeof(double));
         par->vtmp[EB_PAR_OOE1O] = 0;
         par->vtmp[EB_PAR_OOE11A] = 0;
         par->vtmp[EB_PAR_OOE11B] = 0;
