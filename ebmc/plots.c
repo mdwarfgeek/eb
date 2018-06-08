@@ -325,17 +325,11 @@ int do_plots (struct fit_parms *par,
     
     /* If plots are phase-folded, range is always the same */
     if(phasefold) {
-      if(dlist[idat].obstype == OBS_LC) {
-        xmin = -0.25;
-        xmax = 0.75;
-      }
-      else {
-        xmin = 0.0;
-        xmax = 1.0;
-      }
+      xmin = -0.25;
+      xmax = 0.75;
 
-      rvxmin = 0.0;
-      rvxmax = 1.0;
+      rvxmin = -0.25;
+      rvxmax = 0.75;
     }
     else {
       xmin -= 0.05*(xmax-xmin);
@@ -1672,7 +1666,7 @@ int do_plots (struct fit_parms *par,
         phi = tmp / v[EB_PAR_P];
 
         if(phasefold)
-          x = phi - floor(phi);
+          x = phi - floor(phi-xmin);
         else
           x = phi;
 
@@ -1739,7 +1733,7 @@ int do_plots (struct fit_parms *par,
         phi = tmp / v[EB_PAR_P];
 
         if(phasefold)
-          x = phi - floor(phi);
+          x = phi - floor(phi-xmin);
         else
           x = phi;
 
