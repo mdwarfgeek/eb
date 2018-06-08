@@ -11,11 +11,13 @@
 #include <cpgplot.h>
 
 #define RVEXPAND 1.0
+#define NBIN     100
 
 void init_plots (char *pgdev) {
   cpgopen(pgdev);
   cpgscr(0, 1.0, 1.0, 1.0);
   cpgscr(1, 0.0, 0.0, 0.0);
+  cpgscr(15, 0.625, 0.625, 0.625);
 }
 
 void close_plots (void) {
@@ -34,8 +36,8 @@ int do_plots (struct fit_parms *par,
   double phicont[4];
 
   double tmp;
-  float x, y, y1, y2;
-  double phi, phifold;
+  float x, y, yerr, y1, y2;
+  double phi, phifold, wt;
   float tmin, tmax, xmin = 0, xmax = 0, xpri, xsec, ymin, ymax, yrange;
   float residmin, residmax, residrange;
   float xrmag;
@@ -76,6 +78,10 @@ int do_plots (struct fit_parms *par,
   float tx, txlist[10], ty, tylist[10], yy;
   char ttlist[10][64];
   int ii;
+
+  double biny[NBIN], binw[NBIN], binsize;
+  float plot_binx[NBIN], plot_biny[NBIN];
+  int ibin, obin;
 
   float lcexpand    = 0.2;
   float residexpand = 1.0;
@@ -1144,15 +1150,25 @@ int do_plots (struct fit_parms *par,
         residmax += 0.05*residrange;
         
         cpgswin(xmin, xmax, residmax, residmin);
-        cpgbox("1BCNST", 0.0, 0, "BCNSTX", 0.0, 0);
+        cpgbox("1BCNST", 0.0, 0, "BCNST", 0.0, 0);
         cpglab("Phase", "Residual", "");
         
+        /* Prepare bins */
+        binsize = (xmax-xmin) / NBIN;
+
+        for(ibin = 0; ibin < NBIN; ibin++) {
+          biny[ibin] = 0;
+          binw[ibin] = 0;
+        }
+
         for(idat = 0; idat < ndata; idat++) {
           if(dlist[idat].obstype == OBS_LC &&
              dlist[idat].iband == iband)
             yzp = v[dlist[idat].pnorm] + dlist[idat].ymed;  /* subtract off zpt */
           else
             continue;
+
+          cpgsci(15);
 
           for(meas = 0; meas < dlist[idat].nmeas; meas++) {
             /* Compute phase */
@@ -1161,19 +1177,31 @@ int do_plots (struct fit_parms *par,
             
             x = phi - floor(phi-xmin);
             y = dlist[idat].resid[meas];
-            y1 = y-errscale(dlist+idat, v, meas);
-            y2 = y+errscale(dlist+idat, v, meas);
+            yerr = errscale(dlist+idat, v, meas);
+            wt = 1.0/(yerr*yerr);
+
+            y1 = y-yerr;
+            y2 = y+yerr;
             
             if(!dlist[idat].iflag[meas])
               cpgsci(2);
-            
+            else {
+              ibin = floor((x - xmin) / binsize);
+              if(ibin >= 0 && ibin < NBIN) {
+                biny[ibin] += y * wt;
+                binw[ibin] += wt;
+              }
+            }
+
             //cpgpt(1, &x, &y, 2);
             cpgerry(1, &x, &y1, &y2, 1);
             
-            cpgsci(1);
+            cpgsci(15);
           }
         }
         
+        cpgsci(1);
+
         lx[0] = xmin;
         lx[1] = xmax;
         ly[0] = 0.0;
@@ -1184,6 +1212,20 @@ int do_plots (struct fit_parms *par,
         cpgline(2, lx, ly);
         cpgslw(1);
         cpgsci(1);
+
+        obin = 0;
+        for(ibin = 0; ibin < NBIN; ibin++) {
+          if(binw[ibin] > 0) {
+            plot_binx[obin] = xmin + (ibin+0.5) * binsize;
+            plot_biny[obin] = biny[ibin] / binw[ibin];
+            obin++;
+          }
+        }
+
+        cpgqch(&ch);
+        cpgsch(1.4*ch);
+        cpgpt(obin, plot_binx, plot_biny, 17);
+        cpgsch(ch);
       }
     }
 
