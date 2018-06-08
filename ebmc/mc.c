@@ -1,3 +1,6 @@
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -841,6 +844,8 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
   unsigned char typtmp;
   int iband;
 
+  int iprog;
+
   dlist = par->dlist;
   ndata = par->ndata;
   vinit = par->vinit;
@@ -851,6 +856,9 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
   nskip = MAX(ninit, nburn);
 
   sd = 2.4*2.4 / par->nvarym;
+
+  /* Print progress? */
+  iprog = isatty(2);
 
   /* Allocate parameter vectors for fits */
   ainit = (double *) malloc(8*par->nvarym * sizeof(double));
@@ -1098,7 +1106,7 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
   nacc = 0;
 
   for(isim = 0; isim < nsim; isim++) {
-    if((isim+1) % 100 == 0)
+    if(iprog && (isim+1) % 100 == 0)
       fprintf(stderr, "\rSimulation %d of %d", isim+1, nsim);
 
 #if 0 /* periodic rather than continuous updates */
@@ -1371,7 +1379,8 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
     fprintf(mfp, " %.*e %.*e\n", DBL_DIG, chisq, DBL_DIG, nlap);
   }
 
-  fprintf(stderr, "\n");
+  if(iprog)
+    fprintf(stderr, "\n");
 
   fclose(mfp);
 
