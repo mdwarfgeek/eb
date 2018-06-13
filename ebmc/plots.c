@@ -2261,6 +2261,7 @@ void close_plots (void) {
 int do_plots (struct fit_parms *par,
 	      FILE *ofp,
               char **filtnamelist, int nfiltname,
+              int noraw, int novertsep,
               char *errstr) {
   return(0);
 }
@@ -2276,7 +2277,7 @@ void plot_derived_hist (double *mc_der, int nalloc, int nsimd,
 
 }
 
-void plot_lrat_hist (double *mc_lrat, ind nband,
+void plot_lrat_hist (double *mc_lrat, int nband,
                      int nalloc, int nsimd,
                      double *perc, char **names) {
 
