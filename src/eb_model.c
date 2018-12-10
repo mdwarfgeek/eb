@@ -488,10 +488,10 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     svwt = (ctid*svw + stid*cvw) * vnorm;
 
     /* Base light from each component including shape (ellipsoidal).
-       Following Binnendijk (1974, VA, 16, 61), Eq. 17, approximate:
+       Following Binnendijk (1974, VA, 16, 61), Eq. 18, approximate:
 
-       L = 1 - 0.5 * e^2 * cos^2 (psi)
-         = 1 - delt * cos^2 (psi)
+       L = 1 - e * cos^2 (psi)         in their notation
+         = 1 - delt * cos^2 (psi)      in our notation
 
        where psi is the angle between the line of sight and the
        binary major axis, and delt is 1 - Lmin/Lmax as calculated
@@ -499,14 +499,14 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
 
        The angle psi is given by Eq. 12:
 
-       cos psi = sin i sin(v+w+atid)
+       cos psi = sin i sin(v+w+atid)   in our notation
 
        where we have included the tidal lead/lag term above. */
 
     /* Eq. 12 squared */
     csqpsi = ssqi * svwt*svwt;
 
-    /* Eq. 17 */
+    /* Eq. 18 */
     sp.l = sp.o * (1.0 - sp.delt * csqpsi);
     ss.l = ss.o * (1.0 - ss.delt * csqpsi);
 
