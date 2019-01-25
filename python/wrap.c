@@ -57,7 +57,7 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   }
 
   /* Optional arguments */
-  if(ol1arg) {
+  if(ol1arg && ol1arg != Py_None) {
     ol1arr = PyArray_FROM_OTF(ol1arg, NPY_DOUBLE, NPY_IN_ARRAY | NPY_FORCECAST);
     if(!ol1arr)
       goto error;
@@ -71,7 +71,7 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
     ol1 = (double *) PyArray_DATA(ol1arr);
   }
 
-  if(ol2arg) {
+  if(ol2arg && ol2arg != Py_None) {
     ol2arr = PyArray_FROM_OTF(ol2arg, NPY_DOUBLE, NPY_IN_ARRAY | NPY_FORCECAST);
     if(!ol2arr)
       goto error;
@@ -86,7 +86,7 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   }
 
   /* Output array */
-  if(outarg) {
+  if(outarg && outarg != Py_None) {
     outarr = PyArray_FROM_OTF(outarg, NPY_DOUBLE, NPY_OUT_ARRAY);
     if(!outarr)
       goto error;
@@ -119,14 +119,14 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   Py_DECREF(tarr);
   Py_DECREF(typarr);
 
-  if(ol1arg) {
+  if(ol1arr) {
     Py_DECREF(ol1arr);
   }
-  if(ol2arg) {
+  if(ol2arr) {
     Py_DECREF(ol2arr);
   }
 
-  if(outarg) {
+  if(outarg && outarg != Py_None) {
     Py_DECREF(outarr);
     Py_INCREF(Py_None);
     return(Py_None);
