@@ -583,7 +583,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
 
     /* Plane of sky distance.  Without light travel, this is
        (d/r)^2 = (d/a)^2 (a/r)^2
-       (d/a)^2 = cos^2(v+w) + sin^2(v+w) * cos^2 i
+       (d/a)^2 = rv^2 cos^2(v+w) + rv^2 sin^2(v+w) * cos^2 i
        with light travel, we use dys and dzs computed above. */
     dsq = TABS(s->aorsq * (dys*dys + dzs*dzs*csqi));
     d = TSQRT(dsq);
