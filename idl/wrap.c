@@ -477,7 +477,8 @@ static IDL_STRUCT_TAG_DEF eb_const_tags[] = {
 
   { "FLAG_REFL",  NULL, (void *) IDL_TYP_LONG,   0 },
   { "FLAG_PHI",   NULL, (void *) IDL_TYP_LONG,   0 },
-  { "FLAG_NOEC",   NULL, (void *) IDL_TYP_LONG,   0 },
+  { "FLAG_NOEC",  NULL, (void *) IDL_TYP_LONG,   0 },
+  { "FLAG_NOELL", NULL, (void *) IDL_TYP_LONG,   0 },
 
   { "OBS_MAG",    NULL, (void *) IDL_TYP_BYTE,   0 },
   { "OBS_LIGHT",  NULL, (void *) IDL_TYP_BYTE,   0 },
@@ -570,6 +571,7 @@ static struct {
   IDL_LONG flag_refl;
   IDL_LONG flag_phi;
   IDL_LONG flag_noec;
+  IDL_LONG flag_noell;
 
   unsigned char obs_mag;
   unsigned char obs_light;
@@ -659,6 +661,7 @@ static struct {
   EB_FLAG_REFL,
   EB_FLAG_PHI,
   EB_FLAG_NOEC,
+  EB_FLAG_NOELL,
 
   EB_OBS_MAG,
   EB_OBS_LIGHT,

@@ -200,8 +200,10 @@ EB_PAR_REFL2    11
 
 EB_PAR_Q        12
 
- Mass ratio (secondary / primary).  This is used only for ellipsoidal
- variation in the calculation.  Set to zero to disable ellipsoidal.
+ Mass ratio (secondary / primary).  This is used for ellipsoidal
+ variation and light travel time calculations.  Setting the mass ratio
+ to zero disables ellipsoidal but this is better done using the flag
+ (see below) to avoid affecting light travel time, if used.
 
 EB_PAR_TIDANG   13
 
@@ -375,6 +377,13 @@ EB_FLAG_NOEC    4
  the out of eclipse light would be during times of eclipse (as if the
  eclipse was not there), e.g. for plotting out of eclipse modulations
  or removing them.
+
+EB_FLAG_NOELL   8
+
+ Disables ellipsoidal variation.  Intended for use in fitting light
+ curves where the baseline was already flattened, in conjunction with
+ disabling the other quantities affecting the baseline (reflection and
+ spots).
 
 Model outputs / "observation types" ("typ")
 -------------------------------------------

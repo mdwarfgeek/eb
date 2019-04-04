@@ -280,10 +280,15 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   ss.qfltt = 1.0 / (1.0 + sp.q);
   sp.qfltt = -sp.q * ss.qfltt;
 
-  /* Normalized brightness of stars at quadrature */
-  if(sp.q > 0) {
+  /* Mass ratio the other way up for secondary */
+  if(sp.q > 0)
     ss.q = 1.0 / sp.q;
+  else
+    ss.q = 0;  /* plugs up compiler warning */
 
+  /* Normalized brightness of stars at quadrature for ellipsoidal,
+     if enabled and q > 0 */
+  if(sp.q > 0 && !(flags & EB_FLAG_NOELL)) {
     /* (r/a)**3 */
     sp.rcb = sp.rsq * rp;
     ss.rcb = sp.rcb * sp.rrsq*sp.rr;
@@ -292,8 +297,6 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     bright(&ss);
   }
   else {
-    ss.q = 0;  /* plugs up compiler warning */
-
     sp.o = sp.rsq * sp.ldint;
     ss.o = ss.rsq * ss.ldint;
 

@@ -273,8 +273,9 @@ EB_PAR_J
 EB_PAR_LDLIN2
 EB_PAR_REFL1
 EB_PAR_REFL2
-EB_PAR_Q
 EB_PAR_LDNON2
+
+and set the flag EB_FLAG_NOELL to disable ellipsoidal variations.
 
 Light travel time is also usually neglected in transiting planet
 analysis, although I suspect this is simply because it hasn't been
@@ -288,7 +289,9 @@ barycenter (for very small mass ratios, this is essentially how it
 would be defined in radial velocities, i.e. from light emitted at the
 star).  Therefore for compatibility with existing analysis the user
 may wish or need to set EB_PAR_CLTT to zero, or adjust T0 to remove
-the light travel time correction so it agrees with convention.
+the light travel time correction so it agrees with convention.  Note
+that the light travel time calculation also requires the mass ratio
+(EB_PAR_Q) to be set.
 
 Note that neglecting light travel time can yield "false eccentricity",
 which appears as a small contribution to e cos omega, when using
