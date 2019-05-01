@@ -1,8 +1,10 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <float.h>
 #include <math.h>
 
 #include "eb.h"
+#include "machconst.h"
 
 double eb_phiperi (double esinw, double ecosw) {
   double esinwsq, ecoswsq, esq, num, phi;
@@ -37,32 +39,179 @@ double eb_phisec (double esinw, double ecosw) {
   return(phi / TWOPI);
 }
 
-#define ITER_MAX 20
+static double eb_cont_f (double cvw,
+                         double esinw, double ecosw,
+                         double cosi, double targ,
+                         double sgn) {
+  double cvwsq, svwsq, denom;
+
+  cvwsq = cvw*cvw;
+  svwsq = 1.0 - cvwsq;
+
+  denom = 1.0 + ecosw*cvw + sgn * sqrt(svwsq) * esinw;
+
+  return((cvwsq + svwsq * cosi*cosi) / (denom*denom) - targ);
+}
+
+#define BISECT_MAXITER 100
+
+static double eb_cont_bisect (double a, double b,
+                              double fa, double fb,
+                              double esinw, double ecosw,
+                              double cosi, double targ,
+                              double sgn) {
+  int iter;
+  double c, fc;
+
+  for(iter = 0; iter < BISECT_MAXITER; iter++) {
+    c = 0.5*(a+b);
+    fc = eb_cont_f(c, esinw, ecosw, cosi, targ, sgn);
+    if(fc == 0 || 0.5*(b-a) < DBL_EPSILON)
+      break;
+
+    if((fc < 0 && fa < 0) ||
+       (fc >= 0 && fa >= 0)) {
+      a = c;
+      fa = fc;
+    }
+    else {
+      b = c;
+      fb = fc;
+    }
+  }
+
+  if(iter > BISECT_MAXITER)
+    fprintf(stderr, "eb_cont_bisect: iteration limit reached\n");
+
+  return c;
+}
+
+static void eb_cont_find (double esinw, double ecosw,
+                          double cosi, double targ,
+                          double sgn,
+                          double *cvwout) {
+  double a, b, c, d, h, w;
+  double fa, fb, fc, fd;
+  int iter, niter;
+
+  /* Interval bracketing minimum */
+  a = -1;
+  b =  1;
+
+  fa = eb_cont_f(a, esinw, ecosw, cosi, targ, sgn);
+  fb = eb_cont_f(b, esinw, ecosw, cosi, targ, sgn);
+
+  /* Abort if endpoints are in eclipse.  This happens when the bodies
+     are touching or inside each other.  The eclipse solutions are
+     invalid here, but it's possible somebody might try to calculate
+     the contact points without checking. */
+  if(fa <= 0 || fb <= 0) {
+    /* Return conjunction to signal error */
+    cvwout[0] = 0;
+    cvwout[1] = 0;
+    return;
+  }
+
+  /* Calculate value at conjunction */
+  c = 0;
+  fc = eb_cont_f(c, esinw, ecosw, cosi, targ, sgn);
+
+  /* Check if conjunction is in eclipse, this is the most common case. */
+  if(fc > 0) {
+    /* It is not.  Golden section search until we bracket a root. */
+    h = b-a;
+
+    /* 1/phi */
+    w = (sqrt(5) - 1) / 2;
+
+    /* Number of iterations to bracket down to sqrt(epsilon) */
+    niter = ceil(log(SQRT_DBL_EPSILON/h)/log(w));
+
+    /* c,d are probe points partitioning interval [a,b] in ratio w */
+    c = a + (1-w)*h;
+    d = a + w*h;
+    
+    fc = eb_cont_f(c, esinw, ecosw, cosi, targ, sgn);
+    fd = eb_cont_f(d, esinw, ecosw, cosi, targ, sgn);
+
+    /* Search, terminating when there's a root in [a,c] or [d,b] */
+    for(iter = 0; fc > 0 && fd > 0 && iter < niter; iter++) {
+      h *= w;
+      
+      if(fc < fd) {
+        /* Minimum in [a,d], set new endpoint */
+        b = d;
+        fb = fd;
+
+        /* We've already calculated the upper probe point */
+        d = c;
+        fd = fc;
+
+        /* Calculate the new lower probe point */
+        c = a + (1-w)*h;
+        fc = eb_cont_f(c, esinw, ecosw, cosi, targ, sgn);
+      }
+      else {
+        /* Minimum in [c,b], set new start point */
+        a = c;
+        fa = fc;
+
+        /* We've already calculated the lower probe point */
+        c = d;
+        fc = fd;
+
+        /* Calculate the new upper probe point */
+        d = a + w*h;
+        fd = eb_cont_f(d, esinw, ecosw, cosi, targ, sgn);
+      }
+    }
+
+    /* Use whichever of c, d is the smaller, for simplicity */
+    if(fd < fc) {
+      c = d;
+      fc = fd;
+    }
+
+    /* There's now a root in [a,c] or [c,b] or no root at all */
+  }
+
+  /* Is there a root? */
+  if(fc >= 0) {
+    /* Nope, means there's no eclipse so return conjunction */
+    cvwout[0] = 0;
+    cvwout[1] = 0;
+    return;
+  }
+
+  /* Bisect roots */
+  if(sgn > 0) {
+    cvwout[1] = eb_cont_bisect(a, c, fa, fc, esinw, ecosw, cosi, targ, sgn);
+    cvwout[0] = eb_cont_bisect(c, b, fc, fb, esinw, ecosw, cosi, targ, sgn);
+  }
+  else {
+    cvwout[0] = eb_cont_bisect(a, c, fa, fc, esinw, ecosw, cosi, targ, sgn);
+    cvwout[1] = eb_cont_bisect(c, b, fc, fb, esinw, ecosw, cosi, targ, sgn);
+  }
+}
 
 void eb_phicont (double esinw, double ecosw, double cosi,
                  double d, double *phi) {
-  double esq, ecc, omesq, romesq, roe, sinw, cosw;
-  double csqi, omcsqi, dsq, num;
+  double esq, ecc, omesq, roe, sinw, cosw;
   double dsec, dcec, dc;
-  double cvw, svw, cvwsq, svwsq, rr, drr, f, df, delta;
   double sv, cv, dse, dce, dd;
   double dphi;
-  int i, n, iter;
+  double targ, cvw[4], svw;
+  int i;
 
-  struct {
-    double s, c;
-  } sign[] = {
-      {  1.0,  1.0 },  /* primary 1st */
-      {  1.0, -1.0 },  /* primary last */
-      { -1.0, -1.0 },  /* secondary 1st */
-      { -1.0,  1.0 }   /* secondary last */
-  };
+  double sgn[4] = { 1.0, 1.0, -1.0, -1.0 };
 
   esq = esinw*esinw + ecosw*ecosw;
   ecc = sqrt(esq);
   omesq = 1.0 - esq;
-  romesq = 1.0 / omesq;
   roe = sqrt(omesq);
+
+  targ = d / omesq;
+  targ *= targ;
 
   if(ecc > 0) {
     cosw = ecosw / ecc;
@@ -73,88 +222,24 @@ void eb_phicont (double esinw, double ecosw, double cosi,
     sinw = 1.0;
   }
 
-  csqi = cosi*cosi;
-  omcsqi = 1.0 - csqi;
-  dsq = d*d;
-
   /* d* sin, cos eccentric anomaly at inferior conjunction */
   dsec = roe * cosw;
   dcec = ecc + sinw;
   dc = 1.0 + esinw;
 
-  n = sizeof(sign) / sizeof(sign[0]);
+  /* Primary */
+  eb_cont_find(esinw, ecosw, cosi, targ, sgn[0], &(cvw[0]));
 
-  for(i = 0; i < n; i++) {
-    /* We need to solve d^2 = r^2(cos^2(v+w) + sin^2(v+w) cos^2(i))
-       this is a quartic in cos(v+w).  The solution is fairly messy
-       so here we just do it numerically. */
+  /* Secondary */
+  eb_cont_find(esinw, ecosw, cosi, targ, sgn[2], &(cvw[2]));
 
-    /* Radius vector at conjunction and test for an eclipse */
-    rr = (1.0 + sign[i].s * esinw) * romesq;  /* 1/r */
-    num = dsq*rr*rr - csqi;  /* d^2/r^2 - cos^2 (i) */
-    
-    /* Is there an eclipse? */
-    if(num > 0) {
-      /* Initial guess for cos(v+w) under the approximation that
-         r changes slowly during the event, so we can use the value
-         exactly at conjunction. */
-      cvw = sign[i].c * sqrt(num / omcsqi);
+  /* Convert to phase */
+  for(i = 0; i < 4; i++) {
+    svw = sgn[i] * sqrt(1.0 - cvw[i]*cvw[i]);
 
-      /* Newton-Raphson */
-      for(iter = 0; iter < ITER_MAX; iter++) {
-        /* sin(v+w) */
-        cvwsq = cvw*cvw;
-        svwsq = 1.0-cvwsq;
-
-        if(svwsq < 0)  /* no solution */
-          break;
-
-        svw = sign[i].s * sqrt(svwsq);
-        
-        /* sin(v) and cos(v) */
-        sv = svw * cosw - cvw * sinw;
-        cv = cvw * cosw + svw * sinw;
-        
-        /* 1/r and d(1/r)/d(cvw) */
-        rr  = (1.0 + ecc*cv) * romesq;
-        drr = ecc*sv*romesq / svw;
-
-        /* f = cos^2(v+w) (1 - cos^2(i)) + cos^2(i) - d^2/r^2 */
-        f  = cvwsq*omcsqi + csqi - dsq * rr*rr;
-        df = 2 * (cvw * omcsqi - dsq * rr*drr);
-        
-        delta = f / df;
-        
-        cvw -= delta;
-
-        if(fabs(delta) < DBL_EPSILON) {
-          /* I think that's enough... */
-          break;
-        }
-      }
-
-      /* sin(v+w) */
-      cvwsq = cvw*cvw;
-      svwsq = 1.0-cvwsq;
-      
-      if(svwsq < 0) {
-        /* No solution, just return conjunction phases */
-        sv = sign[i].s * cosw;
-        cv = sign[i].s * sinw;
-      }
-      else {
-        svw = sign[i].s * sqrt(svwsq);
-      
-        /* sin(v) and cos(v) */
-        sv = svw * cosw - cvw * sinw;
-        cv = cvw * cosw + svw * sinw;
-      }
-    }      
-    else {
-      /* No eclipse, just return (equal) phases of conjunction */
-      sv = sign[i].s * cosw;
-      cv = sign[i].s * sinw;
-    }
+    /* sin(v) and cos(v) */
+    sv = svw * cosw - cvw[i] * sinw;
+    cv = cvw[i] * cosw + svw * sinw;
 
     /* d*sin(E) and d*cos(E) */
     dse = sv * roe;
