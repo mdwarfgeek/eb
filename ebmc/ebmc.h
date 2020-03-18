@@ -114,6 +114,7 @@ struct fit_parms {
   int naddband;
 
   int *pj;
+  int *pl3;
   int *pldlin1;
   int *pldlin2;
   int *pldnon1;

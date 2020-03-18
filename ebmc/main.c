@@ -366,6 +366,7 @@ int main (int argc, char *argv[]) {
 
     if(iband > 0) {
       par.vtmp[EB_PAR_J] = par.vinit[par.pj[iband-1]];
+      par.vtmp[EB_PAR_L3] = par.vinit[par.pl3[iband-1]];
       par.vtmp[EB_PAR_LDLIN1] = par.vinit[par.pldlin1[iband-1]];
       par.vtmp[EB_PAR_LDLIN2] = par.vinit[par.pldlin2[iband-1]];
       par.vtmp[EB_PAR_LDNON1] = par.vinit[par.pldnon1[iband-1]];

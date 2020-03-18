@@ -94,6 +94,7 @@ void fit_func (struct fit_parms *par, int id,
   /* Sort out surface brightness ratio and LD for each filter */
   if(par->dlist[id].iband > 0) {
     v[EB_PAR_J] = v[par->pj[par->dlist[id].iband-1]];
+    v[EB_PAR_L3] = v[par->pl3[par->dlist[id].iband-1]];
 
     v[EB_PAR_LDLIN1] = v[par->pldlin1[par->dlist[id].iband-1]];
     v[EB_PAR_LDLIN2] = v[par->pldlin2[par->dlist[id].iband-1]];

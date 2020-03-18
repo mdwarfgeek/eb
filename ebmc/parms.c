@@ -22,7 +22,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
   double hjdoff;
 
   int iaddband, naddband, nband;
-  int *pj = (int *) NULL, *pldlin1, *pldlin2, *pldnon1, *pldnon2;
+  int *pj = (int *) NULL, *pl3, *pldlin1, *pldlin2, *pldnon1, *pldnon2;
   int *pgenairm = (int *) NULL, *pgencm;
 
   int ipextra, ifound;
@@ -97,7 +97,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
   nband = naddband+1;
 
   /* Figure out how many parameters there are */
-  nparm = NPARFIX + 5*naddband;
+  nparm = NPARFIX + 6*naddband;
 
   for(idat = 0; idat < ndata; idat++) {
     if(dlist[idat].obstype == OBS_LC) {
@@ -127,7 +127,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
   vary = (int *) malloc(nparm * sizeof(int));
   vnames = (char **) malloc(3 * nparm * sizeof(char *));
   vnamesbuf = (char *) malloc(3 * nparm * PARNAME_MAX * sizeof(char));
-  pj = (int *) malloc(5 * naddband * sizeof(int));
+  pj = (int *) malloc(6 * naddband * sizeof(int));
   pgenairm = (int *) malloc(2 * nband * sizeof(int));
   if(!v || !vcov || !vary || !vnames || !vnamesbuf || !pj) {
     report_syserr(errstr, "malloc");
@@ -145,10 +145,11 @@ int make_parms (struct fit_parms *par, FILE *ofp,
   vtexsym = vnames + 2*nparm;
   vtexsymbuf = vnamesbuf + 2*nparm * PARNAME_MAX;
 
-  pldlin1 = pj + naddband;
-  pldlin2 = pj + 2*naddband;
-  pldnon1 = pj + 3*naddband;
-  pldnon2 = pj + 4*naddband;
+  pl3 = pj + naddband;
+  pldlin1 = pj + 2*naddband;
+  pldlin2 = pj + 3*naddband;
+  pldnon1 = pj + 4*naddband;
+  pldnon2 = pj + 5*naddband;
 
   pgencm = pgenairm + nband;
 
@@ -183,6 +184,19 @@ int make_parms (struct fit_parms *par, FILE *ofp,
     vsg[iparm] = vsgfix[EB_PAR_J];
 
     pj[iaddband] = iparm;
+    iparm++;
+
+    v[iparm] = vfix[EB_PAR_L3];
+    vary[iparm] = varyfix[EB_PAR_L3];
+    snprintf(vnames[iparm], PARNAME_MAX, "L_3_f%d", iaddband+1);
+    strncpy(vunits[iparm], parunits[EB_PAR_L3], PARNAME_MAX);
+    snprintf(vtexsym[iparm], PARNAME_MAX, "L_3_{{\\rm f}%d}", iaddband+1);
+
+    vscl[iparm] = 1.0;
+    voff[iparm] = 0;
+    vsg[iparm] = vsgfix[EB_PAR_L3];
+
+    pl3[iaddband] = iparm;
     iparm++;
 
     v[iparm] = vfix[EB_PAR_LDLIN1];
@@ -450,6 +464,7 @@ int make_parms (struct fit_parms *par, FILE *ofp,
   par->naddband = naddband;
 
   par->pj = pj;
+  par->pl3 = pl3;
   par->pldlin1 = pldlin1;
   par->pldlin2 = pldlin2;
   par->pldnon1 = pldnon1;

@@ -713,6 +713,7 @@ int read_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
         
           if(iband > 0) {
             vltmp[EB_PAR_J] = v[par->pj[iband-1]];
+            vltmp[EB_PAR_L3] = v[par->pl3[iband-1]];
             vltmp[EB_PAR_LDLIN1] = v[par->pldlin1[iband-1]];
             vltmp[EB_PAR_LDLIN2] = v[par->pldlin2[iband-1]];
             vltmp[EB_PAR_LDNON1] = v[par->pldnon1[iband-1]];
@@ -1210,7 +1211,7 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
 
     /* Check boundaries on parameters */
     if(vtrial[EB_PAR_RASUM] >= 0 && vtrial[EB_PAR_RR] >= 0 &&
-       vtrial[EB_PAR_COSI] >= 0 && vtrial[EB_PAR_L3] >= 0 &&
+       vtrial[EB_PAR_COSI] >= 0 &&
        rvok &&
        ldok(vtrial, par->ldtype, 0) &&
        ldok(vtrial, par->ldtype, 1) &&
@@ -1344,6 +1345,7 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
         
         if(iband > 0) {
           vltmp[EB_PAR_J] = v[par->pj[iband-1]];
+          vltmp[EB_PAR_L3] = v[par->pl3[iband-1]];
           vltmp[EB_PAR_LDLIN1] = v[par->pldlin1[iband-1]];
           vltmp[EB_PAR_LDLIN2] = v[par->pldlin2[iband-1]];
           vltmp[EB_PAR_LDNON1] = v[par->pldnon1[iband-1]];
