@@ -18,7 +18,7 @@
 # as found in the tar file uploads on ExoFOP.  The parameter file is just
 # ASCII with 3 columns and should usually look something like:
 #
-# T_0      2457???.?????  1
+# T_0      2457890.12345  1
 # P              1.23456  0
 # R_2/R_1        0.100    0
 # a/R_1         10.0      0
@@ -41,13 +41,32 @@
 # 
 # The integers in the third column specify fixed (=0), or variable (=1)
 # parameters.  A value of 2 is allowed for parameters to be varied only
-# in MCMC but there are currently issues with initialization.
+# in MCMC but there are currently issues with initialization.  This
+# may be needed for fitting cos i which doesn't work very well with the
+# default unconstrained minimizer, the solution just gets stuck if it
+# wanders to places where there's no eclipse.
 #
 # Enough magnitude zero points and error scaling parameters for the
 # light curves given on the command line are added automatically.
 # Most of the other parameters supported by "eb" are also allowed although
 # may not be handled properly.  The main one I've used is L_3 to allow
 # for dilution.
+#
+# These are the various nuisance parameters and how many of them there
+# are added to the model:
+#
+# m_s  magnitude zero point, one per unique combination of meridian side
+#      (= "segment"), telescope, and night.  The reason for allowing
+#      nightly zero points is to get rid of stellar variability and any
+#      systematics (usually due to flat fielding error).
+#      
+# k_n  extinction (airmass detrend), per night, but same value across
+#      all telescopes on that night.
+#
+# s_n  multiplicative error scaling parameter, per night.  There are
+#      cases where one might want to do this per telescope-night.
+#
+# cm   common mode coefficient, one global value across everything.
 #
 # I left in partial support for the common mode to document that as well
 # but it's not available for TOIs which use all telescopes and usually
@@ -139,13 +158,15 @@ for filename in args.filelist:
                                            "i1", "i1", "i1", "i1",
                                            "f4", "f4") })
 
+  # When dealing with multiple nights I usually put the date in
+  # the filename in yyyymmdd form, this extracts it presuming it's
+  # the only 8 digit quantity surrounded by underscores and then
+  # groups observations by night.
   m = re.search(r'_(\d{8})_/', filename)
   if m:
     thenight = int(m.groups()[0])
   else:
     thenight = 0
-
-#  lc = lc[lc["dmag"] > -0.5]  # get rid of junk
 
   # Which segments are populated?
   segs = {s: -1 for s in lc["s"]}
@@ -319,9 +340,6 @@ with open(args.pset, "r") as fp:
       # Add to parameter list if we're varying.
       if vary > 0:
         plist.append(iparm)
-        plist_names.append(name)
-        plist_texsym.append(parm_texsym[iparm])
-        plist_units.append(parm_units[iparm])
 
         if vary == 1:  # 1=in LM and MC, 2=in MC only
           fixed.append(False)
