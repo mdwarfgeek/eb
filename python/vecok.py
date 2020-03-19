@@ -4,6 +4,8 @@
 import math
 import numpy
 
+import eb
+
 def vecok (parm):
   ecc = math.hypot(parm[eb.PAR_ECOSW], parm[eb.PAR_ESINW])
 
