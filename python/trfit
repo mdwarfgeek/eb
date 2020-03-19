@@ -1,0 +1,1116 @@
+#!/usr/bin/env python
+#
+# trfit: a simple script for fitting MEarth followup light curves of TOIs.
+#
+# This is not intended to do everything, and has been committed in a very
+# immature state (although I'm using and working on this regularly now so
+# it should improve).  It's based on the scripts I was using when I did
+# transit fitting on TOI light curves for the last year.  I'm now trying
+# to use this script and adapt it as necessary for new submissions.
+#
+# The main reason for uploading now is to document in a publicly accessible
+# place how I deal with the MEarth-specific data "features", particularly
+# meridian flips and the various detrending parameters, which seem to be
+# causing a lot of trouble when others try to work with followup data I
+# have uploaded.
+#
+# The first argument is a parameter file and the rest are light curves
+# as found in the tar file uploads on ExoFOP.  The parameter file is just
+# ASCII with 3 columns and should usually look something like:
+#
+# T_0      2457???.?????  1
+# P              1.23456  0
+# R_2/R_1        0.100    0
+# a/R_1         10.0      0
+# b              0.2      0
+# mu_1           0.1234   0  # a quadratic LD coeff
+# mup_1          0.5678   0  # b quadratic LD coeff
+# k_0            0.0      1  # airmass detrend night 0
+#
+# when dealing with one night.  This is typically the setup I use where
+# I fix the three geometric transit parameters using the SPOC DV report
+# values and measure only the transit timing, but the transit parameters
+# can be varied in higher s/n cases.  There is no support for dealing
+# with the QLP parameter set at the present time.  TESS band values for
+# limb darkening are usually adequate, but see my eclipsing binary
+# papers for details on how to calculate limb darkening for MEarth if
+# required.
+#
+# The "k_0" is optional and enables airmass detrending which in general
+# I only use when necessary.
+# 
+# The integers in the third column specify fixed (=0), or variable (=1)
+# parameters.  A value of 2 is allowed for parameters to be varied only
+# in MCMC but there are currently issues with initialization.
+#
+# Enough magnitude zero points and error scaling parameters for the
+# light curves given on the command line are added automatically.
+# Most of the other parameters supported by "eb" are also allowed although
+# may not be handled properly.  The main one I've used is L_3 to allow
+# for dilution.
+#
+# I left in partial support for the common mode to document that as well
+# but it's not available for TOIs which use all telescopes and usually
+# doesn't work for high cadence followup data anyway.
+#
+
+import argparse
+import math
+import re
+import sys
+
+import numpy
+import emcee
+
+import eb
+
+import matplotlib
+import matplotlib.gridspec
+
+from nlfit import *
+from medsig import *
+from vecok import *
+
+import fussyastronomer
+
+# usual usage: trfit 2massj*.txt
+
+# Figure size.
+figsize = (7.8, 10.5)  # inches
+
+# Deal with command-line arguments.
+ap = argparse.ArgumentParser()
+ap.add_argument("pset", help="parameter file")
+ap.add_argument("filelist", metavar="file", nargs="+", help="light curve files")
+ap.add_argument("-b", type=int, help="set number of burn-in samples")
+ap.add_argument("-m", help="run MCMC storing output to file M")
+ap.add_argument("-n", type=int, help="set number of MCMC samples to N")
+ap.add_argument("-w", type=int, help="set number of walkers")
+
+if len(sys.argv) == 1:
+  ap.print_help(sys.stderr)
+  sys.exit(1)
+
+args = ap.parse_args()
+
+# Type 42 fonts needed for publication.
+matplotlib.rcParams["pdf.fonttype"] = 42
+matplotlib.rcParams["ps.fonttype"] = 42
+matplotlib.rcParams["figure.subplot.left"] = 0.15
+matplotlib.rcParams["figure.subplot.right"] = 0.85
+matplotlib.rcParams["font.size"] = 14
+
+# Make sure matplotlib doesn't try to use X11 if we're running
+# in non-interactive mode.
+if args.m is not None:
+  matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt
+
+# Fixed random number seed to make results reproducible.
+numpy.random.seed(42)
+
+# Data go here.
+bjd = numpy.empty([0])
+mag = numpy.empty([0])
+e_mag = numpy.empty([0])
+airmass = numpy.empty([0])
+cm = numpy.empty([0])
+dataset = numpy.empty([0], dtype=numpy.int)
+night = numpy.empty([0], dtype=numpy.int)
+
+ypern = 0.01
+
+nds = 0
+
+# Read data (lc files).
+for filename in args.filelist:
+  lc = numpy.genfromtxt(filename,
+                        dtype={"names": ("bjd", "mag", "e_mag", "texp",
+                                         "dmag", "fwhm", "ellipt", "airmass",
+                                         "xlc", "ylc", "angle",
+                                         "skylev", "pkht",
+                                         "s", "v", "r", "f",
+                                         "cm", "corr_mag"),
+                               "formats": ("f8", "f4", "f4", "f4",
+                                           "f4", "f4", "f4", "f4",
+                                           "f8", "f8", "f4",
+                                           "f4", "f4",
+                                           "i1", "i1", "i1", "i1",
+                                           "f4", "f4") })
+
+  m = re.search(r'_(\d{8})_/', filename)
+  if m:
+    thenight = int(m.groups()[0])
+  else:
+    thenight = 0
+
+#  lc = lc[lc["dmag"] > -0.5]  # get rid of junk
+
+  # Which segments are populated?
+  segs = {s: -1 for s in lc["s"]}
+
+  # Assign new indices.
+  for i, s in enumerate(sorted(segs.keys())):
+    segs[s] = i
+
+  # Remap them to decide where we put the new DCs.
+  idclist = numpy.array([segs[s] for s in lc["s"]], dtype=numpy.int)
+
+  print "For", filename, "fitting", len(segs), "DC offsets"
+
+  for idc in range(len(segs)):
+    thislc = numpy.extract(idclist == idc, lc)
+
+    thisbjd = thislc["bjd"]
+    thismag = thislc["mag"] - numpy.median(thislc["mag"])
+    thise_mag = thislc["e_mag"]
+    thisairmass = thislc["airmass"]
+    thiscm = thislc["cm"]
+
+    # Dataset index so we know which z.p. coeff to use.
+    thisdataset = numpy.empty_like(thisbjd, dtype=numpy.int)
+    thisdataset.fill(nds)
+
+    thisnight = numpy.empty_like(thisbjd, dtype=numpy.int)
+    thisnight.fill(thenight)
+
+    # Append to main arrays.
+    bjd = numpy.append(bjd, thisbjd)
+    mag = numpy.append(mag, thismag)
+    e_mag = numpy.append(e_mag, thise_mag)
+    airmass = numpy.append(airmass, thisairmass)
+    cm = numpy.append(cm, thiscm)
+    dataset = numpy.append(dataset, thisdataset)
+    night = numpy.append(night, thisnight)
+
+    nds += 1
+
+print "No of data points =", mag.size
+
+cm -= numpy.median(cm)
+
+# Unique nights.
+nightlist = numpy.unique(night)
+
+# Remap to indices.
+for inight, vnight in enumerate(nightlist):
+  ww = night == vnight
+  night[ww] = inight
+
+nnights = len(nightlist)
+
+# Ask to compute magnitude.
+typ = numpy.empty_like(bjd, dtype=numpy.uint8)
+typ.fill(eb.OBS_MAG)
+
+# Allocate main parameter vector, init to zero.
+parm = numpy.zeros(eb.NPAR+nds+2*nnights+1, dtype=numpy.double)
+parm_names = list(eb.parnames)
+parm_units = list(eb.parunits)
+parm_texsym = list(eb.partexsym)
+
+for ids in range(nds):
+  parm_names.append("m_{0:d}".format(ids))
+  parm_units.append("mag")
+  parm_texsym.append("m_{0:d}".format(ids))
+
+for inight in range(nnights):
+  parm_names.append("k_{0:d}".format(inight))
+  parm_units.append("")
+  parm_texsym.append("k_{0:d}".format(inight))
+
+for inight in range(nnights):
+  parm_names.append("s_{0:d}".format(inight))
+  parm_units.append("")
+  parm_texsym.append("s_{0:d}".format(inight))
+
+pzp = eb.NPAR
+pam = eb.NPAR+nds
+pes = eb.NPAR+nds+nnights
+pcm = eb.NPAR+nds+2*nnights
+
+parm_names.append("cm")
+parm_units.append("")
+parm_texsym.append("c")
+
+# Change these.
+parm_units[eb.PAR_T0] = "BJD-TDB"
+
+parm_names[eb.PAR_RASUM] = "(R_1+R_2)/a"  # for those not used to EB notation
+
+# Name to parameter number mapping.
+name2iparm = {}
+
+for iparm, name in enumerate(parm_names):
+  name2iparm[name] = iparm
+
+# Derived parameters.
+dernames = ["O-C", "i", "a/R_1", "b", "e", "omega", "dur_pri", "dmid"]
+dertexsym = ["O-C", "i", "a/R_1", "b", "e", "\\omega", "t_{{\\rm dur},1}", "d_{\\rm mid}"]
+derunits = ["mins", "deg", "", "", "", "deg", "hr", "ppt"]
+
+nder = len(dernames)
+
+# Initialize these.
+parm[eb.PAR_ROT1]   =  1.0
+parm[eb.PAR_FSPOT1] =  1.0
+
+parm[eb.PAR_ROT2]   =  1.0
+parm[eb.PAR_FSPOT2] =  1.0
+
+# Added parameters.
+for ids in range(nds):
+  parm[pzp + ids] = -0.01       # mag zpt
+
+for inight in range(nnights):
+  parm[pam + inight] = 0.0     # airmass detrend
+
+for inight in range(nnights):
+  parm[pes + inight] = 1.0     # errscl
+
+parm[pcm] = 0.000              # common mode
+
+# Bring in fit parameters.
+plist = []
+plist_names = []
+plist_texsym = []
+plist_units = []
+fixed = []
+
+alt_par_b = None
+alt_par_aor = None
+
+with open(args.pset, "r") as fp:
+  for line in fp:
+    # Remove comments and trim white space.
+    ll = line.split("#", 1)
+    ls = ll[0].strip()
+
+    # Now split into fields.
+    ll = ls.split()
+    if len(ll) < 3:
+      print >>sys.stderr, "could not understand:", line
+      sys.exit(1)
+
+    name = ll[0]
+    value = float(ll[1])
+    vary = int(ll[2])
+
+    if len(ll) > 3:
+      sigma = float(ll[3])
+    else:
+      sigma = None
+
+    # Special case common alternative forms for these two parameters.
+    if name == "b":
+      alt_par_b = value
+      name = "cosi"
+    elif name == "a/R_1":
+      alt_par_aor = value
+      name = "(R_1+R_2)/a"
+      
+    if name in name2iparm:
+      iparm = name2iparm[name]
+
+      # Set value.
+      parm[iparm] = value
+
+      # Add to parameter list if we're varying.
+      if vary > 0:
+        plist.append(iparm)
+        plist_names.append(name)
+        plist_texsym.append(parm_texsym[iparm])
+        plist_units.append(parm_units[iparm])
+
+        if vary == 1:  # 1=in LM and MC, 2=in MC only
+          fixed.append(False)
+        elif vary == 2:
+          fixed.append(True)
+        else:
+          print >>sys.stderr, "unknown vary value:", vary
+          sys.exit(1)
+    else:
+      print >>sys.stderr, "unknown parameter:", name
+      sys.exit(1)
+
+if alt_par_aor is not None:
+  parm[eb.PAR_RASUM] = (1.0+parm[eb.PAR_RR]) / alt_par_aor
+      
+if alt_par_b is not None:
+  aor = (1.0+parm[eb.PAR_RR]) / parm[eb.PAR_RASUM]
+  ecc = math.hypot(parm[eb.PAR_ESINW], parm[eb.PAR_ECOSW])
+  parm[eb.PAR_COSI] = alt_par_b * (1.0 + parm[eb.PAR_ESINW]) / (aor * (1.0 - ecc*ecc))
+
+# Set up initial ephemeris based on parameter file.
+init_t0 = parm[eb.PAR_T0]
+init_p = parm[eb.PAR_P]
+
+tbase = init_t0
+bjd -= tbase
+
+parm[eb.PAR_T0] = 0  # now O-C
+  
+# Automatically add zero points for the light curves we got.
+for ids in range(nds):
+  plist.append(pzp + ids)     # m
+  fixed.append(0)
+
+# Automatically add error scaling per night.
+for inight in range(nnights):
+  plist.append(pes + inight)   # s
+  fixed.append(1)  # initially fixed
+
+plist_names = [ parm_names[ipar] for ipar in plist ]
+plist_units = [ parm_units[ipar] for ipar in plist ]
+plist_texsym = [ parm_texsym[ipar] for ipar in plist ]
+
+plist = numpy.array(plist, dtype=numpy.int)
+fixed = numpy.array(fixed, dtype=numpy.bool)
+
+# Baseline model.
+def obs_bl (ourparm):
+  bl = ourparm[pzp + dataset]
+  bl += ourparm[pam + night] * (airmass - 1.0)
+  bl += ourparm[pcm] * cm
+
+  return bl
+
+# Objective function.
+def obj_func (ourparm, ymod, flags=0):
+  eb.model(ourparm, bjd, typ, flags, out=ymod)
+  ymod += obs_bl(ourparm)
+
+# A simple way to interface this to "lmmin".
+def fit_func (trial, ymod):
+  ourparm = numpy.copy(parm)
+  ourparm[plist] = trial
+
+  obj_func(ourparm, ymod)
+
+# Function returning log of posterior probability for MCMC.
+def logpost (trial, x, y, yerr, flag):
+  # Parameter vector.
+  ourparm = numpy.copy(parm)
+  ourparm[plist] = trial
+
+  s = ourparm[pes:pes+nnights]
+  
+  # Check ranges.
+  if not vecok(ourparm):
+#    print "not vecok for", ourparm
+    return -numpy.inf
+
+  # Likelihood.
+  ymod = numpy.empty_like(y, dtype=numpy.double)
+  obj_func(ourparm, ymod)
+
+  errscl = s[night]
+
+  wt = (1.0 / (yerr[flag] * errscl[flag]))**2
+
+  loglike = -0.5*(numpy.sum(wt*(y[flag]-ymod[flag])**2 - numpy.log(wt)))
+
+  # Priors on all "s" parameters.
+  logprior = numpy.sum(numpy.log(s))
+
+  # Convert to uniform prior on eccentricity.
+  ecc = numpy.hypot(ourparm[eb.PAR_ECOSW], ourparm[eb.PAR_ESINW])
+  if ecc > 0:
+    logprior += numpy.log(ecc)
+
+  return loglike - logprior
+
+def plot_chain(samp, outfile):
+  npanel = 0
+
+  for iparm in range(ndim):
+    jparm = plist[iparm]
+
+    # Skip magnitude zero point nuisance parameters.
+    if jparm >= pzp and jparm < pes:
+      continue
+
+    npanel += 1
+
+  ipanel = 0
+
+  fig = plt.figure(figsize=figsize)
+
+  for iparm in range(ndim):
+    jparm = plist[iparm]
+
+    # Skip magnitude zero point nuisance parameters.
+    if jparm >= pzp and jparm < pes:
+      continue
+
+    plt.subplot(npanel, 1, ipanel+1)
+
+    for iwalk in range(nwalk):
+      plt.plot(samp.chain[iwalk,:,iparm])
+
+    plt.ylabel(plist_names[iparm])
+
+    ipanel += 1
+
+  fig.savefig(outfile)
+
+# Start with all data points included.
+newflag = numpy.ones_like(mag, dtype=numpy.bool)
+
+# Clipping iteration loop.
+for iiter in range(5):
+  vfit = mag
+  e_vfit = e_mag
+  flag = newflag
+
+  vfinal, verr, chisq, ndof = nlfit(fit_func, parm[plist], fixed, vfit, e_vfit, flag=flag)
+
+  # Residual
+  ymod = numpy.empty_like(mag, dtype=numpy.double)
+  fit_func(vfinal, ymod)
+            
+  resid = mag - ymod
+
+  # 5-sigma clip using robust estimator.
+  (medoff, sigoff) = medsig(resid)
+  newflag = numpy.absolute(resid-medoff) < 5*sigoff
+
+  print "Iteration", iiter, sigoff, ndof
+
+  if numpy.sum(newflag) == numpy.sum(flag):
+    # DONE
+    break
+
+# Ensure final cosine inclination is positive.
+wc = plist == eb.PAR_COSI
+vfinal[wc] = numpy.absolute(vfinal[wc])
+  
+ndim = len(plist)
+
+parm[plist] = vfinal
+
+# Compute error scaling initial guesses from chi^2 per
+# effective dof for each night individually.
+for inight in range(nnights):
+  ww = numpy.logical_and(night == inight, flag)
+
+  chisq = numpy.sum((resid[ww] / e_mag[ww])**2)
+
+  # Effective ndof assuming each night contributes equally.
+  endof = numpy.sum(ww) - (ndim / nnights)
+
+  parm[pes+inight] = math.sqrt(chisq / endof)
+
+  print "night", inight, "chi squared =", chisq, "ndof =", ndof
+
+perr = numpy.zeros_like(parm)
+perr[plist] = verr
+
+# Final parameters.
+print "L-M parameters:"
+
+for iparm in range(ndim):
+  value = parm[plist[iparm]]
+
+  if plist[iparm] == eb.PAR_T0:
+    value += tbase
+
+  print "{0:<16} {1:14.6f} +/- {2:8.6f} {3}".format(plist_names[iparm],
+                                                    value,
+                                                    verr[iparm],
+                                                    plist_units[iparm])
+      
+print "i =", math.degrees(math.acos(parm[eb.PAR_COSI])), "deg"
+      
+print 'residual scatter =', sigoff
+
+if args.m is not None:
+  # Init MC
+  if args.w is not None:
+    nwalk = args.w
+  else:
+    nwalk = 100
+
+  vfit = mag
+  e_vfit = e_mag
+
+  samp = emcee.EnsembleSampler(nwalk, ndim, logpost,
+                               args=(bjd, vfit, e_vfit, flag))
+
+  cent = parm[plist]
+  pert = numpy.copy(verr)
+
+  for iparm in range(ndim):
+    jparm = plist[iparm]
+
+    if fixed[iparm]:
+      pert[iparm] = 0.1
+
+  pos = [None]*nwalk
+
+  for iwalk in range(nwalk):
+    trial = None
+
+    for isim in range(100):
+      trial = cent + pert * numpy.random.randn(ndim)
+
+      # Ensure cosine inclination is positive.
+      wc = plist == eb.PAR_COSI
+      trial[wc] = numpy.absolute(trial[wc])
+      
+      trialparm = numpy.copy(parm)
+      trialparm[plist] = trial
+
+      isok = vecok(trialparm)
+      if isok:
+        break
+      
+    if not isok:
+      raise RuntimeError("couldn't find valid starting point")
+
+    pos[iwalk] = trial
+      
+  if args.n is not None:
+    nsim = args.n
+  else:
+    nsim = 1000  # testing only, use more for scientific analysis
+
+  if args.b is not None:
+    nburn = args.b
+  else:
+    nburn = nsim // 5
+    if nburn < 1000:
+      nburn = 1000
+
+  print "MCMC using", nwalk, "walkers nburn =", nburn, "nsim =", nsim
+  print "Will produce", nburn*nwalk, "burn-in and", nsim*nwalk, "final samples"
+
+  print "Burn start"
+
+  pos, prob, state = samp.run_mcmc(pos, nburn,
+                                   rstate0=numpy.random.get_state())
+
+  print "Burn done"
+
+  plot_chain(samp, args.m + "_burn.png")
+
+  samp.reset()
+
+  print "Main start"
+
+  pos, prob, state = samp.run_mcmc(pos, nsim)
+
+  print "Main done"
+
+  plot_chain(samp, args.m + "_chains.png")
+
+  print "Acceptance fraction:", samp.acceptance_fraction
+
+  try:
+    ac = samp.acor
+    if ac:
+      print "Autocorrelation lengths:", ac
+  except:
+    pass
+
+  ch = samp.flatchain
+
+  numpy.savez(args.m,
+              parm=parm,
+              parm_names=parm_names,
+              parm_texsym=parm_texsym,
+              parm_units=parm_units,
+              plist=plist,
+              plist_names=plist_names,
+              plist_texsym=plist_texsym,
+              plist_units=plist_units,
+              pzp=pzp,
+              pes=pes,
+              pam=pam,
+              pcm=pcm,
+              fixed=fixed,
+              tbase=tbase,
+              nwalk=nwalk,
+              nburn=nburn,
+              nsim=nsim,
+              ch=ch)
+  
+  # Output.
+  lfp = open(args.m + "_lcfit.txt", "w")
+  tfp = open(args.m + "_lcfit.tex", "w")
+
+  print >>lfp, "MC parameters:"
+  print "MC parameters:"
+
+  print >>tfp, "\\hline"
+  print >>tfp, "MCMC parameters\\\\"
+  print >>tfp, "\\hline"
+
+  vmed = numpy.empty([ndim])
+  vad = numpy.empty([ndim])
+  vndp = numpy.empty([ndim], dtype=numpy.int)
+
+  ecc_kh_ndp = None
+
+  for iparm in range(ndim):
+    vec = ch[:,iparm]
+
+    med = numpy.median(vec)
+    ad = numpy.absolute(vec-med)
+
+    err = numpy.percentile(ad, 68.3)
+
+    ndp = fussyastronomer.ndp(err)
+
+    vmed[iparm] = med
+    vad[iparm] = err
+    vndp[iparm] = ndp
+
+    if plist[iparm] == eb.PAR_T0:
+      med += tbase
+
+    line = "{0:<16} {1:14.6f} +/- {2:8.6f} {3}".format(plist_names[iparm],
+                                                       med,
+                                                       err,
+                                                       plist_units[iparm])
+
+    print >>lfp, line
+    print line
+
+    # Special cases of n(dp) we want to be the same.
+    if plist[iparm] == eb.PAR_ECOSW or plist[iparm] == eb.PAR_ESINW:
+      if ecc_kh_ndp is None or ndp > ecc_kh_ndp:
+        ecc_kh_ndp = ndp
+    
+  # TeX output.
+  for iparm in range(ndim):
+    med = vmed[iparm]
+    err = vad[iparm]
+
+    if plist[iparm] == eb.PAR_T0:
+      med += tbase
+
+    if plist[iparm] == eb.PAR_ECOSW or plist[iparm] == eb.PAR_ESINW:
+      ndp = ecc_kh_ndp
+    else:
+      ndp = vndp[iparm]
+
+    parstr = "$" + plist_texsym[iparm] + "$"
+    if plist_units[iparm] != "":
+      utex = plist_units[iparm]
+
+      if utex == "Msol":
+        utex = "${\\rm M}_\\odot$"
+
+      parstr += " (" + utex + ")"
+
+    texline = "{0:<36} & ${1:s} \\pm {2:s}$ \\\\".format(parstr,
+                                                         fussyastronomer.format(med, ndp),
+                                                         fussyastronomer.format(err, ndp))
+
+    print >>tfp, texline   
+
+  # Argument and phase of periastron need special treatment.
+  parm[plist] = vmed
+
+  theomega = math.degrees(math.atan2(parm[eb.PAR_ESINW], parm[eb.PAR_ECOSW]))
+  if theomega < 0.0:  # wrap to conventional range [0,360)
+    theomega += 360.0
+
+  thephiperi = eb.phiperi(parm)
+
+  # Derived parameters.
+  nsamp = ch.shape[0]
+
+  vder = numpy.empty([nsamp, len(dernames)])
+
+  for isamp in range(nsamp):
+    thissamp = ch[isamp]
+    parm[plist] = thissamp
+
+    incl = math.degrees(math.acos(parm[eb.PAR_COSI]))
+    aor = (1.0+parm[eb.PAR_RR])/parm[eb.PAR_RASUM]
+    
+    esinw = parm[eb.PAR_ESINW]
+    ecosw = parm[eb.PAR_ECOSW]
+
+    ecc = math.hypot(esinw, ecosw)
+    argper = math.degrees(math.atan2(esinw, ecosw))
+    if argper < 0.0:  # wrap to conventional range [0,360)
+      argper += 360.0
+
+    # Force correct revolution for omega by wrapping delta into (-pi,pi].
+    domega = argper - theomega
+    n = round(domega / 360.0)
+    argper = theomega + domega - n * 360.0
+
+    # Impact parameter.
+    b = aor * parm[eb.PAR_COSI] * (1.0 - ecc*ecc) / (1.0 + esinw)
+    
+    # Contact points.
+    (ps, pe, ss, se) = eb.phicont(parm)
+
+    # Convert primary phases from [0, 1] to [-0.5, 0.5].
+    ps -= round(ps)
+    pe -= round(pe)
+    
+    # Duration.
+    dpp = pe - ps
+    if dpp < 0.0:
+      dpp += 1.0
+
+    # Mid-event.
+    pa = 0.5*(ps+pe)
+
+    # Calculate depth at mid-event.
+    depthparm = numpy.copy(parm)
+    depthparm[eb.PAR_OOE11A] = 0
+    depthparm[eb.PAR_OOE11B] = 0
+    depthparm[eb.PAR_OOE12A] = 0
+    depthparm[eb.PAR_OOE12B] = 0
+    
+    lmid = eb.model(depthparm, pa, eb.OBS_LIGHT, eb.FLAG_PHI)
+
+    depthppt = (1.0-lmid)*1000.0
+    
+    vder[isamp,:] = [parm[eb.PAR_T0]*24.0*60.0,  # really this is O-C
+                     incl,
+                     aor,
+                     b,
+                     ecc, argper, dpp * parm[eb.PAR_P] * 24.0, depthppt]
+
+  numpy.savez(args.m + "_der",
+              dernames=dernames,
+              dertexsym=dertexsym,
+              derunits=derunits,
+              tbase=tbase,
+              nwalk=nwalk,
+              nburn=nburn,
+              nsim=nsim,
+              vder=vder)
+    
+  print >>lfp, "Derived parameters:"
+  print "Derived parameters:"
+
+  print >>tfp, "\\hline"
+  print >>tfp, "Derived parameters\\\\"
+  print >>tfp, "\\hline"
+
+  for ipar, name in enumerate(dernames):
+    unit = derunits[ipar]
+
+    vec = vder[:,ipar]
+
+    med = numpy.median(vec)
+    ad = numpy.absolute(vec-med)
+
+    err = numpy.percentile(ad, 68.3)
+
+    line = "{0:<18} {1:13.7f} +/- {2:9.7f} {3}".format(name, med, err, unit)
+
+    print >>lfp, line
+    print line
+
+    ndp = fussyastronomer.ndp(err)
+
+    parstr = "$" + dertexsym[ipar] + "$"
+    if unit != "":
+      utex = unit
+
+      if utex == "Msol":
+        utex = "${\\rm M}_\\odot$"
+
+      parstr += " (" + utex + ")"
+
+    texline = "{0:<36} & ${1:s} \\pm {2:s}$ \\\\".format(parstr,
+                                                         fussyastronomer.format(med, ndp),
+                                                         fussyastronomer.format(err, ndp))
+
+    print >>tfp, texline
+
+  lfp.close()
+  tfp.close()
+
+  # Update parameters.
+  parm[plist] = vmed
+  perr[plist] = vad
+
+  # Update residual.
+  ymod = numpy.empty_like(mag, dtype=numpy.double)
+  fit_func(vmed, ymod)
+            
+  resid = mag - ymod
+
+else:
+  incl = math.degrees(math.acos(parm[eb.PAR_COSI]))
+  aor = (1.0+parm[eb.PAR_RR])/parm[eb.PAR_RASUM]
+    
+  esinw = parm[eb.PAR_ESINW]
+  ecosw = parm[eb.PAR_ECOSW]
+
+  ecc = math.hypot(esinw, ecosw)
+  argper = math.degrees(math.atan2(esinw, ecosw))
+  if argper < 0.0:  # wrap to conventional range [0,360)
+    argper += 360.0
+
+  # Impact parameter.
+  b = aor * parm[eb.PAR_COSI] * (1.0 - ecc*ecc) / (1.0 + esinw)
+  
+  # Contact points.
+  (ps, pe, ss, se) = eb.phicont(parm)
+  
+  # Convert primary phases from [0, 1] to [-0.5, 0.5].
+  ps -= round(ps)
+  pe -= round(pe)
+  
+  # Duration.
+  dpp = pe - ps
+  if dpp < 0.0:
+    dpp += 1.0
+    
+  # Mid-event.
+  pa = 0.5*(ps+pe)
+  
+  # Calculate depth at mid-event.
+  depthparm = numpy.copy(parm)
+  depthparm[eb.PAR_OOE11A] = 0
+  depthparm[eb.PAR_OOE11B] = 0
+  depthparm[eb.PAR_OOE12A] = 0
+  depthparm[eb.PAR_OOE12B] = 0
+  
+  lmid = eb.model(depthparm, pa, eb.OBS_LIGHT, eb.FLAG_PHI)
+  
+  depthppt = (1.0-lmid)*1000.0
+    
+  vder = numpy.array([parm[eb.PAR_T0]*24.0*60.0,  # really this is O-C
+                      incl,
+                      aor,
+                      b,
+                      ecc, argper, dpp * parm[eb.PAR_P] * 24.0, depthppt])
+
+  print "Derived parameters:"
+
+  for ipar, name in enumerate(dernames):
+    unit = derunits[ipar]
+
+    val = vder[ipar]
+
+    if name == "Tperi":
+      val += tbase
+
+    line = "{0:<18} {1:13.7f} {2}".format(name, val, unit)
+
+    print line
+
+# Contact points.
+(ps, pe, ss, se) = eb.phicont(parm)
+
+# Convert primary phases from [0, 1] to [-0.5, 0.5].
+ps -= round(ps)
+pe -= round(pe)
+    
+# Duration.
+pdur = pe - ps
+if pdur < 0.0:
+  pdur += 1.0
+
+# Mid-event.
+pa = 0.5*(ps+pe)
+  
+# Phase array.
+phi = (bjd - (init_t0-tbase)) / init_p
+phifold = phi - numpy.round(phi)
+
+phimin = numpy.min(phifold)
+phimax = numpy.max(phifold)
+
+# Scaled uncertainties.
+s = parm[pes:pes+nnights]
+errscl = s[night]
+scl_e_mag = e_mag * errscl
+
+# chi^2
+chisq = numpy.sum((resid[flag] / scl_e_mag[flag])**2)
+ndof = numpy.sum(flag) - ndim
+
+print 'Post-MC chi squared =', chisq, 'ndof =', ndof
+
+# Baseline model.
+ybl = obs_bl(parm)
+
+# Take off all baseline for eclipse plots.
+eclplot_dmag = mag - ybl
+
+# Plot data and fit.
+fig = plt.figure(figsize=figsize)
+
+gs = matplotlib.gridspec.GridSpec(2, 1, height_ratios=[2, 1], hspace=0)
+
+sp = plt.subplot(gs[0])
+
+plt.gca().set_axisbelow(True)
+plt.gca().get_xaxis().set_visible(False)
+
+xmp = numpy.linspace(phimin, phimax, 1001)
+tmp = numpy.empty_like(xmp, dtype=numpy.uint8)
+tmp.fill(eb.OBS_MAG)
+
+allnightphi = [None] * nnights
+
+# Bins.
+nbin = 100
+ibin = numpy.arange(nbin)
+
+philen = phimax-phimin
+
+binstart = phimin + philen * (ibin+0.0) / nbin
+binmid   = phimin + philen * (ibin+0.5) / nbin
+binend   = phimin + philen * (ibin+1.0) / nbin
+
+binsize = philen / nbin
+
+print "Bin size =", binsize, "=", binsize*parm[eb.PAR_P], "days", "=", binsize*parm[eb.PAR_P]*24*60, "mins"
+
+ioff = 0
+for inight in range(nnights):
+  if nightlist[inight] >= 0:
+    ww = night == inight
+    nightphi = numpy.round(phi[ww])
+
+#    if not numpy.all(nightphi == nightphi[0]):
+#      print >>sys.stderr, "phasing issue"
+#      sys.exit(1)
+
+    nightphi = int(nightphi[0])
+    allnightphi[inight] = nightphi
+
+    # Plot data.
+    wwp = numpy.logical_and(ww, flag)
+
+    plt.errorbar(phifold[wwp], eclplot_dmag[wwp] + ypern*ioff, scl_e_mag[wwp],
+                 fmt="none", ecolor="#A0A0A0", capsize=2, alpha=0.5)
+
+    biny = numpy.zeros_like(binstart)
+    binw = numpy.zeros_like(binstart)  
+
+    for ibin in range(nbin):
+      wwb = numpy.logical_and(phifold >= binstart[ibin], phifold < binend[ibin])
+      wwu = numpy.logical_and(wwp, wwb)
+
+      y = eclplot_dmag[wwu]
+      wt = 1.0 / (scl_e_mag[wwu]**2)
+
+      biny[ibin] += numpy.sum(y * wt)
+      binw[ibin] += numpy.sum(wt)
+
+    usebin = binw > 0
+
+    binned_y = biny[usebin]/binw[usebin]
+
+    plt.plot(binmid[usebin], binned_y + ypern*ioff, "o", color="black", markersize=4)
+
+    # Plot model with OOE parts taken off.
+    dphi = (parm[eb.PAR_T0] + tbase - init_t0) / init_p
+
+    yooe = 0 #eb.model(parm, nightphi+xmp-dphi, tmp, eb.FLAG_PHI | eb.FLAG_NOEC)
+    ymp = eb.model(parm, nightphi+xmp-dphi, tmp, eb.FLAG_PHI)
+
+    plt.plot(xmp, (ymp-yooe) + ypern*ioff, color="red")
+    
+#    plt.text(1.5*pdur, ypern*ioff,
+#             " {0:8d}".format(nightlist[inight]),
+#             verticalalignment="center",
+#             size=10)
+
+    plt.text(phimax, ypern*ioff+0.05*ypern,
+             " {0:d}".format(nightphi).replace("-", u"\u2212"),
+             verticalalignment="center")
+
+    tc = tbase + parm[eb.PAR_T0] + (nightphi + parm[eb.PAR_PHI0]) * parm[eb.PAR_P]
+
+    print "Tc({0:d}) = {1:.6f}".format(inight, tc)
+
+    ioff = ioff + 1
+
+plt.xlim(phimin, phimax)
+
+plt.gca().invert_yaxis()
+
+plt.ylabel("$\\Delta$ mag")
+
+# Plot of residuals.
+plt.subplot(gs[1], sharex=sp)
+
+plt.gca().set_axisbelow(True)
+
+ioff = 0
+for inight in range(nnights):
+  if nightlist[inight] >= 0:
+    ww = night == inight
+
+    # Plot residuals.
+    wwp = numpy.logical_and(ww, flag)
+
+    plt.errorbar(phifold[wwp], resid[wwp] + ypern*ioff, scl_e_mag[wwp],
+                 fmt="none", ecolor="#A0A0A0", capsize=2, alpha=0.5)
+
+    plt.axhline(ypern*ioff, color="red")
+
+    biny = numpy.zeros_like(binstart)
+    binw = numpy.zeros_like(binstart)  
+
+    for ibin in range(nbin):
+      wwb = numpy.logical_and(phifold >= binstart[ibin], phifold < binend[ibin])
+      wwu = numpy.logical_and(wwp, wwb)
+
+      y = resid[wwu]
+      wt = 1.0 / (scl_e_mag[wwu]**2)
+
+      biny[ibin] += numpy.sum(y * wt)
+      binw[ibin] += numpy.sum(wt)
+
+    usebin = binw > 0
+
+    binned_y = biny[usebin]/binw[usebin]
+
+    plt.plot(binmid[usebin], binned_y + ypern*ioff, "o", color="black", markersize=4)
+
+    binned_med, binned_sig = medsig(binned_y)
+
+    # Show as errorbar.
+    e = plt.errorbar(phimax+0.015*(phimax-phimin), binned_med + ypern*ioff, yerr=binned_sig,
+                     fmt="o", color="black", ecolor="black",
+                     capsize=2, markersize=4)
+
+    # No clipping for the point.
+    e[0].set_clip_on(False)
+
+    # No clipping for caps.
+    for b in e[1]:
+      b.set_clip_on(False)
+
+    # No clipping for the bar itself.
+    for b in e[2]:
+      b.set_clip_on(False)
+
+    # Text with 1.48*MAD.
+    plt.text(phimax+0.03*(phimax-phimin), binned_med + ypern*ioff,
+             "$\\pm${0:.4f}".format(binned_sig),
+             rotation="vertical",
+             verticalalignment="center")
+
+    ioff = ioff + 1
+
+plt.xlim(phimin, phimax)
+
+plt.gca().invert_yaxis()
+
+plt.ylabel("Residual")
+plt.xlabel("Predicted orbital phase")
+
+if args.m is None:
+  plt.show()
+else:
+  fig.savefig(args.m + "_lcfit.pdf")
+  fig.savefig(args.m + "_lcfit.eps")
