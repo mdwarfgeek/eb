@@ -18,8 +18,9 @@
 # as found in the tar file uploads on ExoFOP.  The parameter file is just
 # ASCII with 3 columns and should usually look something like:
 #
-# T_0      2457890.12345  1
+# T_0      2457890.12345  0
 # P              1.23456  0
+# Phi_0          0.0      1  # phase offset for timing
 # R_2/R_1        0.100    0
 # a/R_1         10.0      0
 # b              0.2      0
@@ -783,6 +784,7 @@ if args.m is not None:
 
     # Calculate depth at mid-event.
     depthparm = numpy.copy(parm)
+    depthparm[eb.PAR_PHI0] = 0
     depthparm[eb.PAR_OOE11A] = 0
     depthparm[eb.PAR_OOE11B] = 0
     depthparm[eb.PAR_OOE12A] = 0
@@ -791,8 +793,10 @@ if args.m is not None:
     lmid = eb.model(depthparm, pa, eb.OBS_LIGHT, eb.FLAG_PHI)
 
     depthppt = (1.0-lmid)*1000.0
+
+    omc = parm[eb.PAR_T0] + parm[eb.PAR_PHI0]*parm[eb.PAR_P]
     
-    vder[isamp,:] = [parm[eb.PAR_T0]*24.0*60.0,  # really this is O-C
+    vder[isamp,:] = [omc*24.0*60.0,
                      incl,
                      aor,
                      b,
@@ -892,6 +896,7 @@ else:
   
   # Calculate depth at mid-event.
   depthparm = numpy.copy(parm)
+  depthparm[eb.PAR_PHI0] = 0
   depthparm[eb.PAR_OOE11A] = 0
   depthparm[eb.PAR_OOE11B] = 0
   depthparm[eb.PAR_OOE12A] = 0
@@ -900,8 +905,10 @@ else:
   lmid = eb.model(depthparm, pa, eb.OBS_LIGHT, eb.FLAG_PHI)
   
   depthppt = (1.0-lmid)*1000.0
-    
-  vder = numpy.array([parm[eb.PAR_T0]*24.0*60.0,  # really this is O-C
+
+  omc = parm[eb.PAR_T0] + parm[eb.PAR_PHI0]*parm[eb.PAR_P]
+  
+  vder = numpy.array([omc*24.0*60.0,  # really this is O-C
                       incl,
                       aor,
                       b,
