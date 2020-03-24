@@ -150,6 +150,21 @@ eclipse shape, which tend to be prone to contamination from
 systematics in the photometry and can depend on assumptions such as
 limb darkening coefficients.
 
+I produced a couple of simple demonstrations of this problem which are
+posted online:
+
+http://www.cfa.harvard.edu/~jirwin/eb_demo/mimic.pdf
+
+http://www.cfa.harvard.edu/~jirwin/eb_demo/mimic_ldvar.pdf
+
+where the plots were produced by generating a noise-free light curve
+and then fitting it using non-linear least-squares with the radius
+ratio fixed to an incorrect value, varying the magnitude zero point
+and the other three parameters shown.  The second set of plots also
+had variable limb darkening (all four coefficients) to demonstrate
+what would happen if (or rather, particularly for M-dwarfs, when) this
+is not perfectly known.
+
 For SB2s, this problem is usually solved by including an observed
 spectroscopic light ratio in the model, so the radius ratio can be
 determined.  For most cases involving ground-based data, the
