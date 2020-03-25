@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+
+import argparse
+import math
+import re
+import sys
+
+import numpy
+
+import eb
+
+import matplotlib.pyplot as plt
+import corner
+
+# Augmented parameter list.
+parnames = list(eb.parnames)
+
+PAR_KTOT = len(parnames)
+parnames.append("K_1+K_2")
+PAR_GAMMA = len(parnames)
+parnames.append("gamma")
+
+# Map.
+parmap = {}
+
+for ipar, parname in enumerate(parnames):
+  parmap[parname] = ipar
+
+# Deal with command-line arguments.
+ap = argparse.ArgumentParser()
+ap.add_argument("file", help="MC file")
+ap.add_argument("parlist", nargs="+", help="parameters")
+args = ap.parse_args()
+
+ipars = [ parmap[parname] for parname in args.parlist ]
+npars = len(args.parlist)
+
+# Read data (MC simulation files).
+with open(args.file, "r") as fp:
+  istate = 0
+
+  # Read header information.
+  pnames = None
+  pdict = None
+  nskip = None
+  ntot = None
+
+  vinit = None
+
+  for line in fp:
+    if istate == 0:  # ground state
+      s = line.strip()
+
+      m = re.match(r'^#\s*Simulations:\s*(\d+)\s+\w+\s+(\d+)\s+\w+\s+(\d+)',
+                   s)
+      if m is not None:
+        gg = m.groups()
+
+        nskip = max(int(gg[0]), int(gg[1]))
+        ntot = int(gg[2])
+
+      m = re.match(r'^#\s*Initial\s+solution:', s)
+      if m is not None:
+        istate = 1
+
+      m = re.match(r'^#\s*Columns:', s)
+      if m is not None:
+        istate = 3
+
+    elif istate == 1:  # initial parameter names
+      s = line.lstrip("#").strip()
+      pnames = s.split()
+      pdict = { name: i for i, name in enumerate(pnames) }
+
+      istate += 1
+    elif istate == 2:  # initial parameter vector
+      s = line.lstrip("#").strip()
+      ll = s.split()
+
+      iind = [ pdict[name] if name in pdict else None for name in parnames ]
+      win = [ iin for iout, iin in enumerate(iind) if iin is not None ]
+      wout = [ iout for iout, iin in enumerate(iind) if iin is not None ]
+
+      vinit = numpy.zeros([ len(parnames) ], dtype=numpy.double)
+      vinit[wout] = [ float(ll[iin]) for iin in win ]
+
+      istate = 0
+    elif istate == 3:  # MC parameter names
+      s = line.lstrip("#").strip()
+      pnames = s.split()
+      pdict = { name: i for i, name in enumerate(pnames) }
+
+      break
+
+  # Allocate arrays.
+  nwant = ntot - nskip
+
+  ch = numpy.empty([nwant, npars], dtype=numpy.double)
+
+  # Continue reading file.
+  iind = [ pdict[name] if name in pdict else None for name in parnames ]
+  win = [ iin for iout, iin in enumerate(iind) if iin is not None ]
+  wout = [ iout for iout, iin in enumerate(iind) if iin is not None ]
+
+  iline = 0
+
+  for line in fp:
+    ll = line.split("#", 2)
+    s = ll[0].strip()
+
+    if s == "":
+      continue
+
+    if iline >= nskip:
+      ires = iline - nskip
+
+      ll = s.split()
+
+      isim = int(ll[0])
+
+      if isim != iline+1:
+        print >>sys.stderr, "numbering inconsistency:", isim, iline+1
+        sys.exit(1)
+
+      vdelt = numpy.zeros_like(vinit)
+      vdelt[wout] = [ float(ll[iin]) for iin in win ]
+
+      v = vinit + vdelt
+
+#      vder = eb.getvder(v, v[PAR_GAMMA], v[PAR_KTOT])
+
+      ch[ires,:] = v[ipars]
+
+    iline += 1
+
+fig = corner.corner(ch, labels=args.parlist)
+plt.show()
+

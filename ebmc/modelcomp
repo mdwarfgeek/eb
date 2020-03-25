@@ -1,0 +1,260 @@
+#!/usr/bin/env python
+
+import argparse
+import math
+import re
+import sys
+
+import numpy
+
+import eb
+
+import mass2teff
+
+def printpar(name, ll):
+  med = numpy.median(ll)
+  err = numpy.percentile(numpy.absolute(ll-med), 68.3)
+
+  if err > 0:
+    ndp = 1 - int(math.floor(math.log10(err)))
+    if ndp < 0:
+      ndp = 0
+  else:
+    ndp = 0
+
+  fmt = "{0:10s} {1:."+str(ndp)+"f} +/- {2:."+str(ndp)+"f}"
+
+  print fmt.format(name, med, err)
+
+# "Rss" (interferometry) from Boyajian et al. (2012).
+def rss(m, age):
+  return((0.3200 * m + 0.6063) * m + 0.0906)
+
+# "Reb" (eclipsing binaries) from Boyajian et al. (2012).
+def reb(m, age):
+  return((-0.1297 * m + 1.0718) * m + 0.0135)
+
+# Bayless & Orosz (2006) relation for eclipsing binaries.
+def rbo(m, age):
+  return((0.0374 * m + 0.9343) * m + 0.0324)
+
+# Augmented parameter list.
+parnames = list(eb.parnames)
+
+PAR_KTOT = len(parnames)
+parnames.append("K_1+K_2")
+PAR_GAMMA = len(parnames)
+parnames.append("gamma")
+
+# Deal with command-line arguments.
+ap = argparse.ArgumentParser()
+ap.add_argument("mrrel", help="mass-radius relation")
+ap.add_argument("filelist", metavar="file", nargs="+", help="light curve files")
+args = ap.parse_args()
+
+if args.mrrel == "bhac15":
+  from bhac15 import *
+  
+  # Baraffe et al. (2015) models.  Beware the sampling in mass of this
+  # grid is very coarse so it is probably not appropriate to interpolate
+  # these models in the way the program does.  As such and due to the
+  # dependency on a data table file I have not provided the "bhac15.py"
+  # support file needed to use this functionality.
+  mod = bhac15()
+
+  # Set up interpolator for "field ages" (1-10 Gyr).
+  age_low = 1.0
+  age_high = 10.0
+  age = 5.0  # we'll use this age
+
+  funcr = mod.interp("R/Rs", age_low, age_high)
+  funct = mod.interp("Teff", age_low, age_high)
+else:
+  mrrels = { "rss": rss,
+             "reb": reb,
+             "rbo": rbo }
+
+  age = None
+
+  if args.mrrel in mrrels:
+    funcr = mrrels[args.mrrel]
+    funct = mass2teff.mass2teff()
+  else:
+    print >>sys.stderr, "unknown relation:", mrrel
+    sys.exit(1)
+
+# Read data (MC simulation files).
+m1 = numpy.empty([0], dtype=numpy.double)
+m2 = numpy.empty([0], dtype=numpy.double)
+rtot = numpy.empty([0], dtype=numpy.double)
+rr = numpy.empty([0], dtype=numpy.double)
+r1 = numpy.empty([0], dtype=numpy.double)
+r2 = numpy.empty([0], dtype=numpy.double)
+modr1 = numpy.empty([0], dtype=numpy.double)
+modr2 = numpy.empty([0], dtype=numpy.double)
+modt1 = numpy.empty([0], dtype=numpy.double)
+modt2 = numpy.empty([0], dtype=numpy.double)
+
+for filename in args.filelist:
+  with open(filename, "r") as fp:
+    istate = 0
+
+    # Read header information.
+    pnames = None
+    pdict = None
+    nskip = None
+    ntot = None
+
+    vinit = None
+
+    for line in fp:
+      if istate == 0:  # ground state
+        s = line.strip()
+
+        m = re.match(r'^#\s*Simulations:\s*(\d+)\s+\w+\s+(\d+)\s+\w+\s+(\d+)',
+                     s)
+        if m is not None:
+          gg = m.groups()
+
+          nskip = max(int(gg[0]), int(gg[1]))
+          ntot = int(gg[2])
+        
+        m = re.match(r'^#\s*Initial\s+solution:', s)
+        if m is not None:
+          istate = 1
+
+        m = re.match(r'^#\s*Columns:', s)
+        if m is not None:
+          istate = 3
+
+      elif istate == 1:  # initial parameter names
+        s = line.lstrip("#").strip()
+        pnames = s.split()
+        pdict = { name: i for i, name in enumerate(pnames) }
+
+        istate += 1
+      elif istate == 2:  # initial parameter vector
+        s = line.lstrip("#").strip()
+        ll = s.split()
+
+        iind = [ pdict[name] if name in pdict else None for name in parnames ]
+        win = [ iin for iout, iin in enumerate(iind) if iin is not None ]
+        wout = [ iout for iout, iin in enumerate(iind) if iin is not None ]
+
+        vinit = numpy.zeros([ len(parnames) ], dtype=numpy.double)
+        vinit[wout] = [ float(ll[iin]) for iin in win ]
+
+        istate = 0
+      elif istate == 3:  # MC parameter names
+        s = line.lstrip("#").strip()
+        pnames = s.split()
+        pdict = { name: i for i, name in enumerate(pnames) }
+
+        break
+
+    # Allocate arrays.
+    nwant = ntot - nskip
+
+    thism1 = numpy.empty([nwant], dtype=numpy.double)
+    thism2 = numpy.empty([nwant], dtype=numpy.double)
+    thisrtot = numpy.empty([nwant], dtype=numpy.double)
+    thisrr = numpy.empty([nwant], dtype=numpy.double)
+    thisr1 = numpy.empty([nwant], dtype=numpy.double)
+    thisr2 = numpy.empty([nwant], dtype=numpy.double)
+    thismodr1 = numpy.empty([nwant], dtype=numpy.double)
+    thismodr2 = numpy.empty([nwant], dtype=numpy.double)
+    thismodt1 = numpy.empty([nwant], dtype=numpy.double)
+    thismodt2 = numpy.empty([nwant], dtype=numpy.double)
+
+    # Continue reading file.
+    iind = [ pdict[name] if name in pdict else None for name in parnames ]
+    win = [ iin for iout, iin in enumerate(iind) if iin is not None ]
+    wout = [ iout for iout, iin in enumerate(iind) if iin is not None ]
+
+    iline = 0
+
+    for line in fp:
+      ll = line.split("#", 2)
+      s = ll[0].strip()
+
+      if s == "":
+        continue
+
+      if iline >= nskip:
+        ires = iline - nskip
+
+        ll = s.split()
+
+        isim = int(ll[0])
+
+        if isim != iline+1:
+          print >>sys.stderr, "numbering inconsistency:", isim, iline+1
+          sys.exit(1)
+        
+        vdelt = numpy.zeros_like(vinit)
+        vdelt[wout] = [ float(ll[iin]) for iin in win ]
+        
+        v = vinit + vdelt
+
+        vder = eb.getvder(v, v[PAR_GAMMA], v[PAR_KTOT])
+        
+        thism1[ires] = vder[eb.PAR_M1]
+        thism2[ires] = vder[eb.PAR_M2]
+        thisrtot[ires] = vder[eb.PAR_RTOT]
+        thisrr[ires] = v[eb.PAR_RR]
+        thisr1[ires] = vder[eb.PAR_R1]
+        thisr2[ires] = vder[eb.PAR_R2]
+        thismodr1[ires] = funcr(vder[eb.PAR_M1], age)
+        thismodr2[ires] = funcr(vder[eb.PAR_M2], age)
+        thismodt1[ires] = funct(vder[eb.PAR_M1], age)
+        thismodt2[ires] = funct(vder[eb.PAR_M2], age)
+        
+      iline += 1
+
+    m1 = numpy.append(m1, thism1)
+    m2 = numpy.append(m2, thism2)
+    rtot = numpy.append(rtot, thisrtot)
+    rr = numpy.append(rr, thisrr)
+    r1 = numpy.append(r1, thisr1)
+    r2 = numpy.append(r2, thisr2)
+    modr1 = numpy.append(modr1, thismodr1)
+    modr2 = numpy.append(modr2, thismodr2)
+    modt1 = numpy.append(modt1, thismodt1)
+    modt2 = numpy.append(modt2, thismodt2)
+
+modrtot = modr1+modr2
+modrr = modr2 / modr1
+
+beta1 = r1 / modr1
+beta2 = r2 / modr2
+betatot = rtot / modrtot
+betarr = rr / modrr
+
+print "MCMC values:"
+
+printpar("M_1", m1)
+printpar("M_2", m2)
+printpar("R_1", r1)
+printpar("R_2", r2)
+printpar("R_1+R_2", rtot)
+printpar("R_2/R_1", rr)
+
+print "Model values:"
+
+printpar("R_1", modr1)
+printpar("R_2", modr2)
+printpar("R_1+R_2", modrtot)
+printpar("R_2/R_1", modrr)
+printpar("Teff_1", modt1)
+printpar("Teff_2", modt2)
+
+print "Inflation:"
+
+printpar("beta_1", beta1)
+printpar("beta_2", beta2)
+printpar("beta_tot", betatot)
+
+# This is a diagnostic, should always be 1.0.  If it isn't, be
+# very suspicious of the solution.
+printpar("beta_rr", betarr)
+
