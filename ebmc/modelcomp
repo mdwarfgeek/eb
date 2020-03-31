@@ -9,6 +9,7 @@ import numpy
 
 import eb
 
+import mass2radius
 import mass2teff
 
 def printpar(name, ll):
@@ -25,18 +26,6 @@ def printpar(name, ll):
   fmt = "{0:10s} {1:."+str(ndp)+"f} +/- {2:."+str(ndp)+"f}"
 
   print fmt.format(name, med, err)
-
-# "Rss" (interferometry) from Boyajian et al. (2012).
-def rss(m, age):
-  return((0.3200 * m + 0.6063) * m + 0.0906)
-
-# "Reb" (eclipsing binaries) from Boyajian et al. (2012).
-def reb(m, age):
-  return((-0.1297 * m + 1.0718) * m + 0.0135)
-
-# Bayless & Orosz (2006) relation for eclipsing binaries.
-def rbo(m, age):
-  return((0.0374 * m + 0.9343) * m + 0.0324)
 
 # Augmented parameter list.
 parnames = list(eb.parnames)
@@ -70,9 +59,9 @@ if args.mrrel == "bhac15":
   funcr = mod.interp("R/Rs", age_low, age_high)
   funct = mod.interp("Teff", age_low, age_high)
 else:
-  mrrels = { "rss": rss,
-             "reb": reb,
-             "rbo": rbo }
+  mrrels = { "rss": mass2radius.rss,
+             "reb": mass2radius.reb,
+             "rbo": mass2radius.rbo }
 
   age = None
 
