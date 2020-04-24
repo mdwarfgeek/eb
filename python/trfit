@@ -163,7 +163,7 @@ for filename in args.filelist:
   # the filename in yyyymmdd form, this extracts it presuming it's
   # the only 8 digit quantity surrounded by underscores and then
   # groups observations by night.
-  m = re.search(r'_(\d{8})_/', filename)
+  m = re.search(r'_(\d{8})[_\.]', filename)
   if m:
     thenight = int(m.groups()[0])
   else:
