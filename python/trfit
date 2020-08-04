@@ -103,6 +103,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("pset", help="parameter file")
 ap.add_argument("filelist", metavar="file", nargs="+", help="light curve files")
 ap.add_argument("-b", type=int, help="set number of burn-in samples")
+ap.add_argument("-k", type=float, default=5, help="k-sigma clipping (default k=5)")
 ap.add_argument("-m", help="run MCMC storing output to file M")
 ap.add_argument("-n", type=int, help="set number of MCMC samples to N")
 ap.add_argument("-w", type=int, help="set number of walkers")
@@ -491,9 +492,9 @@ for iiter in range(5):
             
   resid = mag - ymod
 
-  # 5-sigma clip using robust estimator.
+  # Clip using robust estimator.
   (medoff, sigoff) = medsig(resid)
-  newflag = numpy.absolute(resid-medoff) < 5*sigoff
+  newflag = numpy.absolute(resid-medoff) < args.k*sigoff
 
   print "Iteration", iiter, sigoff, ndof
 
