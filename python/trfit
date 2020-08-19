@@ -75,8 +75,12 @@
 #
 
 import argparse
+import contextlib
 import math
+import multiprocessing
+import os
 import re
+import signal
 import sys
 
 import numpy
@@ -409,7 +413,7 @@ def fit_func (trial, ymod):
   obj_func(ourparm, ymod)
 
 # Function returning log of posterior probability for MCMC.
-def logpost (trial, x, y, yerr, flag):
+def logpost (trial):
   # Parameter vector.
   ourparm = numpy.copy(parm)
   ourparm[plist] = trial
@@ -422,14 +426,14 @@ def logpost (trial, x, y, yerr, flag):
     return -numpy.inf
 
   # Likelihood.
-  ymod = numpy.empty_like(y, dtype=numpy.double)
+  ymod = numpy.empty_like(mag, dtype=numpy.double)
   obj_func(ourparm, ymod)
 
   errscl = s[night]
 
-  wt = (1.0 / (yerr[flag] * errscl[flag]))**2
+  wt = (1.0 / (e_mag[flag] * errscl[flag]))**2
 
-  loglike = -0.5*(numpy.sum(wt*(y[flag]-ymod[flag])**2 - numpy.log(wt)))
+  loglike = -0.5*(numpy.sum(wt*(mag[flag]-ymod[flag])**2 - numpy.log(wt)))
 
   # Priors on all "s" parameters.
   logprior = numpy.sum(numpy.log(s))
@@ -447,8 +451,8 @@ def plot_chain(samp, outfile):
   for iparm in range(ndim):
     jparm = plist[iparm]
 
-    # Skip magnitude zero point nuisance parameters.
-    if jparm >= pzp and jparm < pes:
+    # Skip nuisance parameters.
+    if jparm >= pzp and jparm < pcm:
       continue
 
     npanel += 1
@@ -460,8 +464,8 @@ def plot_chain(samp, outfile):
   for iparm in range(ndim):
     jparm = plist[iparm]
 
-    # Skip magnitude zero point nuisance parameters.
-    if jparm >= pzp and jparm < pes:
+    # Skip nuisance parameters.
+    if jparm >= pzp and jparm < pcm:
       continue
 
     plt.subplot(npanel, 1, ipanel+1)
@@ -475,16 +479,31 @@ def plot_chain(samp, outfile):
 
   fig.savefig(outfile)
 
+# Forward any keyboard interrupts sent to workers to the parent process,
+# so they terminate the simulation correctly.
+def init_worker():
+  def sigint_handler(signum, frame):
+    os.kill(os.getppid(), signum)
+  
+  signal.signal(signal.SIGINT, sigint_handler)
+
+# Context manager to wrap the multiprocessing pool in a "with" block and
+# terminate it correctly on exit.
+@contextlib.contextmanager
+def terminate_workers(obj):
+  try:
+    yield obj
+  finally:
+    obj.terminate()
+    
 # Start with all data points included.
 newflag = numpy.ones_like(mag, dtype=numpy.bool)
 
 # Clipping iteration loop.
 for iiter in range(5):
-  vfit = mag
-  e_vfit = e_mag
   flag = newflag
 
-  vfinal, verr, chisq, ndof = nlfit(fit_func, parm[plist], fixed, vfit, e_vfit, flag=flag)
+  vfinal, verr, chisq, ndof = nlfit(fit_func, parm[plist], fixed, mag, e_mag, flag=flag)
 
   # Residual
   ymod = numpy.empty_like(mag, dtype=numpy.double)
@@ -546,324 +565,325 @@ print "i =", math.degrees(math.acos(parm[eb.PAR_COSI])), "deg"
 print 'residual scatter =', sigoff
 
 if args.m is not None:
-  # Init MC
-  if args.w is not None:
-    nwalk = args.w
-  else:
-    nwalk = 100
-
-  vfit = mag
-  e_vfit = e_mag
-
-  samp = emcee.EnsembleSampler(nwalk, ndim, logpost,
-                               args=(bjd, vfit, e_vfit, flag))
-
-  cent = parm[plist]
-  pert = numpy.copy(verr)
-
-  for iparm in range(ndim):
-    jparm = plist[iparm]
-
-    if fixed[iparm]:
-      pert[iparm] = 0.1
-
-  pos = [None]*nwalk
-
-  for iwalk in range(nwalk):
-    trial = None
-
-    for isim in range(100):
-      trial = cent + pert * numpy.random.randn(ndim)
-
-      # Ensure cosine inclination is positive.
-      wc = plist == eb.PAR_COSI
-      trial[wc] = numpy.absolute(trial[wc])
-      
-      trialparm = numpy.copy(parm)
-      trialparm[plist] = trial
-
-      isok = vecok(trialparm)
-      if isok:
-        break
-      
-    if not isok:
-      raise RuntimeError("couldn't find valid starting point")
-
-    pos[iwalk] = trial
-      
-  if args.n is not None:
-    nsim = args.n
-  else:
-    nsim = 1000  # testing only, use more for scientific analysis
-
-  if args.b is not None:
-    nburn = args.b
-  else:
-    nburn = nsim // 5
-    if nburn < 1000:
-      nburn = 1000
-
-  print "MCMC using", nwalk, "walkers nburn =", nburn, "nsim =", nsim
-  print "Will produce", nburn*nwalk, "burn-in and", nsim*nwalk, "final samples"
-
-  print "Burn start"
-
-  pos, prob, state = samp.run_mcmc(pos, nburn,
-                                   rstate0=numpy.random.get_state())
-
-  print "Burn done"
-
-  plot_chain(samp, args.m + "_burn.png")
-
-  samp.reset()
-
-  print "Main start"
-
-  pos, prob, state = samp.run_mcmc(pos, nsim)
-
-  print "Main done"
-
-  plot_chain(samp, args.m + "_chains.png")
-
-  print "Acceptance fraction:", samp.acceptance_fraction
-
-  try:
-    ac = samp.acor
-    if ac:
-      print "Autocorrelation lengths:", ac
-  except:
-    pass
-
-  ch = samp.flatchain
-
-  numpy.savez(args.m,
-              parm=parm,
-              parm_names=parm_names,
-              parm_texsym=parm_texsym,
-              parm_units=parm_units,
-              plist=plist,
-              plist_names=plist_names,
-              plist_texsym=plist_texsym,
-              plist_units=plist_units,
-              pzp=pzp,
-              pes=pes,
-              pam=pam,
-              pcm=pcm,
-              fixed=fixed,
-              tbase=tbase,
-              nwalk=nwalk,
-              nburn=nburn,
-              nsim=nsim,
-              ch=ch)
-  
-  # Output.
-  lfp = open(args.m + "_lcfit.txt", "w")
-  tfp = open(args.m + "_lcfit.tex", "w")
-
-  print >>lfp, "MC parameters:"
-  print "MC parameters:"
-
-  print >>tfp, "\\hline"
-  print >>tfp, "MCMC parameters\\\\"
-  print >>tfp, "\\hline"
-
-  vmed = numpy.empty([ndim])
-  vad = numpy.empty([ndim])
-  vndp = numpy.empty([ndim], dtype=numpy.int)
-
-  ecc_kh_ndp = None
-
-  for iparm in range(ndim):
-    vec = ch[:,iparm]
-
-    med = numpy.median(vec)
-    ad = numpy.absolute(vec-med)
-
-    err = numpy.percentile(ad, 68.3)
-
-    ndp = fussyastronomer.ndp(err)
-
-    vmed[iparm] = med
-    vad[iparm] = err
-    vndp[iparm] = ndp
-
-    if plist[iparm] == eb.PAR_T0:
-      med += tbase
-
-    line = "{0:<16} {1:14.6f} +/- {2:8.6f} {3}".format(plist_names[iparm],
-                                                       med,
-                                                       err,
-                                                       plist_units[iparm])
-
-    print >>lfp, line
-    print line
-
-    # Special cases of n(dp) we want to be the same.
-    if plist[iparm] == eb.PAR_ECOSW or plist[iparm] == eb.PAR_ESINW:
-      if ecc_kh_ndp is None or ndp > ecc_kh_ndp:
-        ecc_kh_ndp = ndp
-    
-  # TeX output.
-  for iparm in range(ndim):
-    med = vmed[iparm]
-    err = vad[iparm]
-
-    if plist[iparm] == eb.PAR_T0:
-      med += tbase
-
-    if plist[iparm] == eb.PAR_ECOSW or plist[iparm] == eb.PAR_ESINW:
-      ndp = ecc_kh_ndp
+  with terminate_workers(multiprocessing.Pool(initializer=init_worker)) as pool:
+    # Init MC
+    if args.w is not None:
+      nwalk = args.w
     else:
-      ndp = vndp[iparm]
+      if ndim < 50:
+        nwalk = 100
+      else:
+        nwalk = 50*int(math.ceil(2.0*ndim/50.0))
 
-    parstr = "$" + plist_texsym[iparm] + "$"
-    if plist_units[iparm] != "":
-      utex = plist_units[iparm]
+    samp = emcee.EnsembleSampler(nwalk, ndim, logpost,
+                                 pool=pool)
 
-      if utex == "Msol":
-        utex = "${\\rm M}_\\odot$"
+    cent = parm[plist]
+    pert = numpy.copy(verr)
 
-      parstr += " (" + utex + ")"
+    for iparm in range(ndim):
+      jparm = plist[iparm]
 
-    texline = "{0:<36} & ${1:s} \\pm {2:s}$ \\\\".format(parstr,
-                                                         fussyastronomer.format(med, ndp),
-                                                         fussyastronomer.format(err, ndp))
+      if fixed[iparm]:
+        pert[iparm] = 0.1
 
-    print >>tfp, texline   
+    pos = [None]*nwalk
 
-  # Argument and phase of periastron need special treatment.
-  parm[plist] = vmed
+    for iwalk in range(nwalk):
+      trial = None
 
-  theomega = math.degrees(math.atan2(parm[eb.PAR_ESINW], parm[eb.PAR_ECOSW]))
-  if theomega < 0.0:  # wrap to conventional range [0,360)
-    theomega += 360.0
+      for isim in range(100):
+        trial = cent + pert * numpy.random.randn(ndim)
 
-  thephiperi = eb.phiperi(parm)
+        # Ensure cosine inclination is positive.
+        wc = plist == eb.PAR_COSI
+        trial[wc] = numpy.absolute(trial[wc])
 
-  # Derived parameters.
-  nsamp = ch.shape[0]
+        trialparm = numpy.copy(parm)
+        trialparm[plist] = trial
 
-  vder = numpy.empty([nsamp, len(dernames)])
+        isok = vecok(trialparm)
+        if isok:
+          break
 
-  for isamp in range(nsamp):
-    thissamp = ch[isamp]
-    parm[plist] = thissamp
+      if not isok:
+        raise RuntimeError("couldn't find valid starting point")
 
-    incl = math.degrees(math.acos(parm[eb.PAR_COSI]))
-    aor = (1.0+parm[eb.PAR_RR])/parm[eb.PAR_RASUM]
-    
-    esinw = parm[eb.PAR_ESINW]
-    ecosw = parm[eb.PAR_ECOSW]
+      pos[iwalk] = trial
 
-    ecc = math.hypot(esinw, ecosw)
-    argper = math.degrees(math.atan2(esinw, ecosw))
-    if argper < 0.0:  # wrap to conventional range [0,360)
-      argper += 360.0
+    if args.n is not None:
+      nsim = args.n
+    else:
+      nsim = 1000  # testing only, use more for scientific analysis
 
-    # Force correct revolution for omega by wrapping delta into (-pi,pi].
-    domega = argper - theomega
-    n = round(domega / 360.0)
-    argper = theomega + domega - n * 360.0
+    if args.b is not None:
+      nburn = args.b
+    else:
+      nburn = nsim // 5
+      if nburn < 1000:
+        nburn = 1000
 
-    # Impact parameter.
-    b = aor * parm[eb.PAR_COSI] * (1.0 - ecc*ecc) / (1.0 + esinw)
-    
-    # Contact points.
-    (ps, pe, ss, se) = eb.phicont(parm)
+    print "MCMC using", nwalk, "walkers nburn =", nburn, "nsim =", nsim
+    print "Will produce", nburn*nwalk, "burn-in and", nsim*nwalk, "final samples"
 
-    # Convert primary phases from [0, 1] to [-0.5, 0.5].
-    ps -= round(ps)
-    pe -= round(pe)
-    
-    # Duration.
-    dpp = pe - ps
-    if dpp < 0.0:
-      dpp += 1.0
+    print "Burn start"
 
-    # Mid-event.
-    pa = 0.5*(ps+pe)
+    pos, prob, state = samp.run_mcmc(pos, nburn,
+                                     rstate0=numpy.random.get_state())
 
-    # Calculate depth at mid-event.
-    depthparm = numpy.copy(parm)
-    depthparm[eb.PAR_PHI0] = 0
-    depthparm[eb.PAR_OOE11A] = 0
-    depthparm[eb.PAR_OOE11B] = 0
-    depthparm[eb.PAR_OOE12A] = 0
-    depthparm[eb.PAR_OOE12B] = 0
-    
-    lmid = eb.model(depthparm, pa, eb.OBS_LIGHT, eb.FLAG_PHI)
+    print "Burn done"
 
-    depthppt = (1.0-lmid)*1000.0
+    plot_chain(samp, args.m + "_burn.png")
 
-    omc = parm[eb.PAR_T0] + parm[eb.PAR_PHI0]*parm[eb.PAR_P]
-    
-    vder[isamp,:] = [omc*24.0*60.0,
-                     incl,
-                     aor,
-                     b,
-                     ecc, argper, dpp * parm[eb.PAR_P] * 24.0, depthppt]
+    samp.reset()
 
-  numpy.savez(args.m + "_der",
-              dernames=dernames,
-              dertexsym=dertexsym,
-              derunits=derunits,
-              tbase=tbase,
-              nwalk=nwalk,
-              nburn=nburn,
-              nsim=nsim,
-              vder=vder)
-    
-  print >>lfp, "Derived parameters:"
-  print "Derived parameters:"
+    print "Main start"
 
-  print >>tfp, "\\hline"
-  print >>tfp, "Derived parameters\\\\"
-  print >>tfp, "\\hline"
+    pos, prob, state = samp.run_mcmc(pos, nsim)
 
-  for ipar, name in enumerate(dernames):
-    unit = derunits[ipar]
+    print "Main done"
 
-    vec = vder[:,ipar]
+    plot_chain(samp, args.m + "_chains.png")
 
-    med = numpy.median(vec)
-    ad = numpy.absolute(vec-med)
+    print "Acceptance fraction:", samp.acceptance_fraction
 
-    err = numpy.percentile(ad, 68.3)
+    try:
+      ac = samp.acor
+      if ac:
+        print "Autocorrelation lengths:", ac
+    except:
+      pass
 
-    line = "{0:<18} {1:13.7f} +/- {2:9.7f} {3}".format(name, med, err, unit)
+    ch = samp.flatchain
 
-    print >>lfp, line
-    print line
+    numpy.savez(args.m,
+                parm=parm,
+                parm_names=parm_names,
+                parm_texsym=parm_texsym,
+                parm_units=parm_units,
+                plist=plist,
+                plist_names=plist_names,
+                plist_texsym=plist_texsym,
+                plist_units=plist_units,
+                pzp=pzp,
+                pes=pes,
+                pam=pam,
+                pcm=pcm,
+                fixed=fixed,
+                tbase=tbase,
+                nwalk=nwalk,
+                nburn=nburn,
+                nsim=nsim,
+                ch=ch)
 
-    ndp = fussyastronomer.ndp(err)
+    # Output.
+    lfp = open(args.m + "_lcfit.txt", "w")
+    tfp = open(args.m + "_lcfit.tex", "w")
 
-    parstr = "$" + dertexsym[ipar] + "$"
-    if unit != "":
-      utex = unit
+    print >>lfp, "MC parameters:"
+    print "MC parameters:"
 
-      if utex == "Msol":
-        utex = "${\\rm M}_\\odot$"
+    print >>tfp, "\\hline"
+    print >>tfp, "MCMC parameters\\\\"
+    print >>tfp, "\\hline"
 
-      parstr += " (" + utex + ")"
+    vmed = numpy.empty([ndim])
+    vad = numpy.empty([ndim])
+    vndp = numpy.empty([ndim], dtype=numpy.int)
 
-    texline = "{0:<36} & ${1:s} \\pm {2:s}$ \\\\".format(parstr,
-                                                         fussyastronomer.format(med, ndp),
-                                                         fussyastronomer.format(err, ndp))
+    ecc_kh_ndp = None
 
-    print >>tfp, texline
+    for iparm in range(ndim):
+      vec = ch[:,iparm]
 
-  lfp.close()
-  tfp.close()
+      med = numpy.median(vec)
+      ad = numpy.absolute(vec-med)
 
-  # Update parameters.
-  parm[plist] = vmed
-  perr[plist] = vad
+      err = numpy.percentile(ad, 68.3)
 
-  # Update residual.
-  ymod = numpy.empty_like(mag, dtype=numpy.double)
-  fit_func(vmed, ymod)
-            
-  resid = mag - ymod
+      ndp = fussyastronomer.ndp(err)
+
+      vmed[iparm] = med
+      vad[iparm] = err
+      vndp[iparm] = ndp
+
+      if plist[iparm] == eb.PAR_T0:
+        med += tbase
+
+      line = "{0:<16} {1:14.6f} +/- {2:8.6f} {3}".format(plist_names[iparm],
+                                                         med,
+                                                         err,
+                                                         plist_units[iparm])
+
+      print >>lfp, line
+      print line
+
+      # Special cases of n(dp) we want to be the same.
+      if plist[iparm] == eb.PAR_ECOSW or plist[iparm] == eb.PAR_ESINW:
+        if ecc_kh_ndp is None or ndp > ecc_kh_ndp:
+          ecc_kh_ndp = ndp
+
+    # TeX output.
+    for iparm in range(ndim):
+      med = vmed[iparm]
+      err = vad[iparm]
+
+      if plist[iparm] == eb.PAR_T0:
+        med += tbase
+
+      if plist[iparm] == eb.PAR_ECOSW or plist[iparm] == eb.PAR_ESINW:
+        ndp = ecc_kh_ndp
+      else:
+        ndp = vndp[iparm]
+
+      parstr = "$" + plist_texsym[iparm] + "$"
+      if plist_units[iparm] != "":
+        utex = plist_units[iparm]
+
+        if utex == "Msol":
+          utex = "${\\rm M}_\\odot$"
+
+        parstr += " (" + utex + ")"
+
+      texline = "{0:<36} & ${1:s} \\pm {2:s}$ \\\\".format(parstr,
+                                                           fussyastronomer.format(med, ndp),
+                                                           fussyastronomer.format(err, ndp))
+
+      print >>tfp, texline   
+
+    # Argument and phase of periastron need special treatment.
+    parm[plist] = vmed
+
+    theomega = math.degrees(math.atan2(parm[eb.PAR_ESINW], parm[eb.PAR_ECOSW]))
+    if theomega < 0.0:  # wrap to conventional range [0,360)
+      theomega += 360.0
+
+    thephiperi = eb.phiperi(parm)
+
+    # Derived parameters.
+    nsamp = ch.shape[0]
+
+    vder = numpy.empty([nsamp, len(dernames)])
+
+    for isamp in range(nsamp):
+      thissamp = ch[isamp]
+      parm[plist] = thissamp
+
+      incl = math.degrees(math.acos(parm[eb.PAR_COSI]))
+      aor = (1.0+parm[eb.PAR_RR])/parm[eb.PAR_RASUM]
+
+      esinw = parm[eb.PAR_ESINW]
+      ecosw = parm[eb.PAR_ECOSW]
+
+      ecc = math.hypot(esinw, ecosw)
+      argper = math.degrees(math.atan2(esinw, ecosw))
+      if argper < 0.0:  # wrap to conventional range [0,360)
+        argper += 360.0
+
+      # Force correct revolution for omega by wrapping delta into (-pi,pi].
+      domega = argper - theomega
+      n = round(domega / 360.0)
+      argper = theomega + domega - n * 360.0
+
+      # Impact parameter.
+      b = aor * parm[eb.PAR_COSI] * (1.0 - ecc*ecc) / (1.0 + esinw)
+
+      # Contact points.
+      (ps, pe, ss, se) = eb.phicont(parm)
+
+      # Convert primary phases from [0, 1] to [-0.5, 0.5].
+      ps -= round(ps)
+      pe -= round(pe)
+
+      # Duration.
+      dpp = pe - ps
+      if dpp < 0.0:
+        dpp += 1.0
+
+      # Mid-event.
+      pa = 0.5*(ps+pe)
+
+      # Calculate depth at mid-event.
+      depthparm = numpy.copy(parm)
+      depthparm[eb.PAR_PHI0] = 0
+      depthparm[eb.PAR_OOE11A] = 0
+      depthparm[eb.PAR_OOE11B] = 0
+      depthparm[eb.PAR_OOE12A] = 0
+      depthparm[eb.PAR_OOE12B] = 0
+
+      lmid = eb.model(depthparm, pa, eb.OBS_LIGHT, eb.FLAG_PHI)
+
+      depthppt = (1.0-lmid)*1000.0
+
+      omc = parm[eb.PAR_T0] + parm[eb.PAR_PHI0]*parm[eb.PAR_P]
+
+      vder[isamp,:] = [omc*24.0*60.0,
+                       incl,
+                       aor,
+                       b,
+                       ecc, argper, dpp * parm[eb.PAR_P] * 24.0, depthppt]
+
+    numpy.savez(args.m + "_der",
+                dernames=dernames,
+                dertexsym=dertexsym,
+                derunits=derunits,
+                tbase=tbase,
+                nwalk=nwalk,
+                nburn=nburn,
+                nsim=nsim,
+                vder=vder)
+
+    print >>lfp, "Derived parameters:"
+    print "Derived parameters:"
+
+    print >>tfp, "\\hline"
+    print >>tfp, "Derived parameters\\\\"
+    print >>tfp, "\\hline"
+
+    for ipar, name in enumerate(dernames):
+      unit = derunits[ipar]
+
+      vec = vder[:,ipar]
+
+      med = numpy.median(vec)
+      ad = numpy.absolute(vec-med)
+
+      err = numpy.percentile(ad, 68.3)
+
+      line = "{0:<18} {1:13.7f} +/- {2:9.7f} {3}".format(name, med, err, unit)
+
+      print >>lfp, line
+      print line
+
+      ndp = fussyastronomer.ndp(err)
+
+      parstr = "$" + dertexsym[ipar] + "$"
+      if unit != "":
+        utex = unit
+
+        if utex == "Msol":
+          utex = "${\\rm M}_\\odot$"
+
+        parstr += " (" + utex + ")"
+
+      texline = "{0:<36} & ${1:s} \\pm {2:s}$ \\\\".format(parstr,
+                                                           fussyastronomer.format(med, ndp),
+                                                           fussyastronomer.format(err, ndp))
+
+      print >>tfp, texline
+
+    lfp.close()
+    tfp.close()
+
+    # Update parameters.
+    parm[plist] = vmed
+    perr[plist] = vad
+
+    # Update residual.
+    ymod = numpy.empty_like(mag, dtype=numpy.double)
+    fit_func(vmed, ymod)
+
+    resid = mag - ymod
 
 else:
   incl = math.degrees(math.acos(parm[eb.PAR_COSI]))
