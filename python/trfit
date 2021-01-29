@@ -110,7 +110,10 @@ ap.add_argument("-b", type=int, help="set number of burn-in samples")
 ap.add_argument("-k", type=float, default=5, help="k-sigma clipping (default k=5)")
 ap.add_argument("-m", help="run MCMC storing output to file M")
 ap.add_argument("-n", type=int, help="set number of MCMC samples to N")
+ap.add_argument("-o", type=str, help="save plot data to file O")
 ap.add_argument("-w", type=int, help="set number of walkers")
+ap.add_argument("-s", type=int, help="set number of bins for plot")
+ap.add_argument("-y", type=float, help="set y limits for plot")
 
 if len(sys.argv) == 1:
   ap.print_help(sys.stderr)
@@ -988,6 +991,28 @@ ybl = obs_bl(parm)
 # Take off all baseline for eclipse plots.
 eclplot_dmag = mag - ybl
 
+# Optionally save plot data in "relative flux".  This is frequently requested
+# for model fitting in software unable to support the appropriate systematics
+# models.  Doing this is not recommended so we emit a warning.
+if args.o is not None:
+  print "============================================================="
+  print "Saving plot data to", args.o
+
+  fnorm = numpy.power(10.0, -0.4*eclplot_dmag)
+  e_fnorm = scl_e_mag * fnorm * (math.log(10) / 2.5)
+
+  ss = numpy.argsort(bjd)
+  
+  numpy.savetxt(args.o,
+                numpy.column_stack((bjd[ss]+tbase, fnorm[ss], e_fnorm[ss])),
+                fmt="%14.6f %10.8f %10.8f")
+
+  print "WARNING: we advise against using this file for model fitting!"
+  print "There can be non-trivial degeneracies between the transit and"
+  print "nuisance parameters, particularly in case of data sets with"
+  print "meridian flips near or during important parts of the transit."
+  print "============================================================="
+  
 # Plot data and fit.
 fig = plt.figure(figsize=figsize)
 
@@ -1005,7 +1030,11 @@ tmp.fill(eb.OBS_MAG)
 allnightphi = [None] * nnights
 
 # Bins.
-nbin = 100
+if args.s is not None:
+  nbin = args.s
+else:
+  nbin = 100
+
 ibin = numpy.arange(nbin)
 
 philen = phimax-phimin
@@ -1081,7 +1110,10 @@ for inight in range(nnights):
 
 plt.xlim(phimin, phimax)
 
-plt.gca().invert_yaxis()
+if args.y is not None:
+  plt.ylim(args.y+ypern*(ioff-1), -args.y)
+else:
+  plt.gca().invert_yaxis()
 
 plt.ylabel("$\\Delta$ mag")
 
@@ -1150,7 +1182,10 @@ for inight in range(nnights):
 
 plt.xlim(phimin, phimax)
 
-plt.gca().invert_yaxis()
+if args.y is not None:
+  plt.ylim(args.y+ypern*(ioff-1), -args.y)
+else:
+  plt.gca().invert_yaxis()
 
 plt.ylabel("Residual")
 plt.xlabel("Predicted orbital phase")
