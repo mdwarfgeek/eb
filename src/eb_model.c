@@ -597,7 +597,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     }
 
     rrsq = s->rrsq;
-    rr = s->rr;
+    rr = fabs(s->rr);
 
     a = d-rr;
     b = d+rr;
@@ -733,6 +733,11 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
       iecl = 1;
     }
 
+    if(s->rr < 0) {
+      area = -area;
+      fecl = -fecl;
+    }
+    
     /* Take off the eclipse.  Assumes spots have the same limb
        darkening as the photosphere, seems reasonable. */
     s->ltot -= fecl*s->l + fecl*s->ol*s->fecs + area*s->rl;

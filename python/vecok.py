@@ -38,7 +38,6 @@ def vecok (parm):
   max_cosi = max(pmcosi, smcosi)
 
   return(parm[eb.PAR_RASUM] >= 0 and
-         parm[eb.PAR_RR] >= 0 and
          parm[eb.PAR_COSI] >= 0 and
          parm[eb.PAR_COSI] < max_cosi and  # has an eclipse
          parm[eb.PAR_LDLIN1]+parm[eb.PAR_LDNON1] >= 0 and  # LD triangle
