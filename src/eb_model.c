@@ -597,7 +597,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     }
 
     rrsq = s->rrsq;
-    rr = fabs(s->rr);
+    rr = TABS(s->rr);
 
     a = d-rr;
     b = d+rr;
