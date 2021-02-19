@@ -749,7 +749,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
           out[p] = zp - 2.5 * TLOG10(ltot);
         }
         else
-          out[p] = zp;
+          out[p] = zp + 99.0;
       }
       else
         out[p] = ltot;
