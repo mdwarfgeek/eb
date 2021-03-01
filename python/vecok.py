@@ -8,6 +8,7 @@ import eb
 
 def vecok (parm):
   ecc = math.hypot(parm[eb.PAR_ECOSW], parm[eb.PAR_ESINW])
+  omesq = 1.0-ecc*ecc
 
   ol1 = parm[eb.PAR_OOE1O] + 2.0*math.sqrt(parm[eb.PAR_OOE11A]**2+
                                            parm[eb.PAR_OOE11B]**2+
@@ -25,10 +26,10 @@ def vecok (parm):
   # at inferior conjunction for some peculiar configurations
   # of eccentric orbits, so we should really figure out how to
   # do a better job of this (root finding on plane of sky sep?).
-  pmcosi = parm[eb.PAR_RASUM] * (1.0 + parm[eb.PAR_ESINW]) / (1.0-ecc*ecc)
+  pmcosi = parm[eb.PAR_RASUM] * (1.0 + parm[eb.PAR_ESINW]) / omesq
 
   # Similar for secondary eclipse.
-  smcosi = parm[eb.PAR_RASUM] * (1.0 - parm[eb.PAR_ESINW]) / (1.0-ecc*ecc)
+  smcosi = parm[eb.PAR_RASUM] * (1.0 - parm[eb.PAR_ESINW]) / omesq
 
   # Maximum cosine of inclination, here we require there is
   # an eclipse (primary or secondary).  This prevents the
@@ -38,6 +39,7 @@ def vecok (parm):
   max_cosi = max(pmcosi, smcosi)
 
   return(parm[eb.PAR_RASUM] >= 0 and
+         parm[eb.PAR_RASUM] < (1-ecc) and  # stars don't overlap at min sep
          parm[eb.PAR_COSI] >= 0 and
          parm[eb.PAR_COSI] < max_cosi and  # has an eclipse
          parm[eb.PAR_LDLIN1]+parm[eb.PAR_LDNON1] >= 0 and  # LD triangle

@@ -829,7 +829,7 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
   double *mc_init = (double *) NULL, sum;
 
   int meas, isim, nburn, ninit, nskip, nsimd, nacc, itmp;
-  double chisq, newchisq, nlap, bestnlap, esq, newesq, sd;
+  double chisq, newchisq, nlap, bestnlap, esq, newesq, newecc, sd;
   double nll, nllnew, baye, bayenew, bf;
   double vder[EB_NDER], vderbest[EB_NDER];
   int idat, nchisq;
@@ -1200,6 +1200,10 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
     if(par->vary[EB_PAR_CLTT] < 0)
       vtrial[EB_PAR_CLTT] = vtrial[PAR_KTOT]*1000 / EB_LIGHT;
 
+    newesq = vtrial[EB_PAR_ECOSW]*vtrial[EB_PAR_ECOSW] + 
+             vtrial[EB_PAR_ESINW]*vtrial[EB_PAR_ESINW];
+    newecc = sqrt(newesq);
+    
     /* Check RV scale factors are non-negative */
     rvok = 1;
 
@@ -1210,8 +1214,11 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
 	rvok = 0;
 
     /* Check boundaries on parameters */
-    if(vtrial[EB_PAR_RASUM] >= 0 && vtrial[EB_PAR_RR] >= 0 &&
+    if(vtrial[EB_PAR_RASUM] >= 0 &&
+       vtrial[EB_PAR_RASUM] < (1-newecc) &&
+       vtrial[EB_PAR_RR] >= 0 &&
        vtrial[EB_PAR_COSI] >= 0 &&
+       newecc < 1 &&
        rvok &&
        ldok(vtrial, par->ldtype, 0) &&
        ldok(vtrial, par->ldtype, 1) &&
@@ -1235,9 +1242,6 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
         }
       }
       
-      newesq = vtrial[EB_PAR_ECOSW]*vtrial[EB_PAR_ECOSW] + 
-	       vtrial[EB_PAR_ESINW]*vtrial[EB_PAR_ESINW];
-
       /* Negative log likelihood ("unlikelihood") */
       nllnew = newchisq / 2;
 
