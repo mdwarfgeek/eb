@@ -1103,8 +1103,11 @@ for inight in range(nnights):
              verticalalignment="center")
 
     tc = tbase + parm[eb.PAR_T0] + (nightphi + parm[eb.PAR_PHI0]) * parm[eb.PAR_P]
+    e_tc = numpy.hypot(perr[eb.PAR_T0], numpy.hypot(perr[eb.PAR_PHI0] * parm[eb.PAR_P], (nightphi + parm[eb.PAR_PHI0]) * perr[eb.PAR_P]))
 
-    print "Tc({0:d}) = {1:.6f}".format(inight, tc)
+    ndp = fussyastronomer.ndp(e_tc)
+    
+    print "Tc({0:d}) = {1:s} +/- {2:s}".format(inight, fussyastronomer.format(tc, ndp), fussyastronomer.format(e_tc, ndp))
 
     ioff = ioff + 1
 
