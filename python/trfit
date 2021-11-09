@@ -425,7 +425,7 @@ def logpost (trial):
   s = ourparm[pes:pes+nnights]
   
   # Check ranges.
-  if not vecok(ourparm):
+  if not vecok(get_eb_vector(ourparm)):
 #    print "not vecok for", ourparm
     return -numpy.inf
 
@@ -624,7 +624,7 @@ if args.m is not None:
         trialparm = numpy.copy(parm)
         trialparm[plist] = trial
 
-        isok = vecok(trialparm)
+        isok = vecok(get_eb_vector(trialparm))
         if isok:
           break
 
