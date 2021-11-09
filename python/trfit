@@ -264,10 +264,14 @@ parm_names.append("cm")
 parm_units.append("")
 parm_texsym.append("c")
 
-# Change these.
-parm_units[eb.PAR_T0] = "BJD-TDB"
+# Alter parameter vector to use transiting planet parameter set.
+PAR_AOR = eb.PAR_RASUM
+PAR_B   = eb.PAR_COSI
 
-parm_names[eb.PAR_RASUM] = "(R_1+R_2)/a"  # for those not used to EB notation
+parm_names[PAR_AOR] = "a/R_1"
+parm_names[PAR_B] = "b"
+
+parm_units[eb.PAR_T0] = "BJD-TDB"
 
 # Name to parameter number mapping.
 name2iparm = {}
@@ -276,9 +280,9 @@ for iparm, name in enumerate(parm_names):
   name2iparm[name] = iparm
 
 # Derived parameters.
-dernames = ["O-C", "i", "a/R_1", "b", "e", "omega", "dur_pri", "dmid"]
-dertexsym = ["O-C", "i", "a/R_1", "b", "e", "\\omega", "t_{{\\rm dur},1}", "d_{\\rm mid}"]
-derunits = ["mins", "deg", "", "", "", "deg", "hr", "ppt"]
+dernames = ["O-C", "i", "e", "omega", "dur_pri", "dmid"]
+dertexsym = ["O-C", "i", "e", "\\omega", "t_{{\\rm dur},1}", "d_{\\rm mid}"]
+derunits = ["mins", "deg", "", "deg", "hr", "ppt"]
 
 nder = len(dernames)
 
@@ -308,9 +312,6 @@ plist_texsym = []
 plist_units = []
 fixed = []
 
-alt_par_b = None
-alt_par_aor = None
-
 with open(args.pset, "r") as fp:
   for line in fp:
     # Remove comments and trim white space.
@@ -332,14 +333,6 @@ with open(args.pset, "r") as fp:
     else:
       sigma = None
 
-    # Special case common alternative forms for these two parameters.
-    if name == "b":
-      alt_par_b = value
-      name = "cosi"
-    elif name == "a/R_1":
-      alt_par_aor = value
-      name = "(R_1+R_2)/a"
-      
     if name in name2iparm:
       iparm = name2iparm[name]
 
@@ -360,14 +353,6 @@ with open(args.pset, "r") as fp:
     else:
       print >>sys.stderr, "unknown parameter:", name
       sys.exit(1)
-
-if alt_par_aor is not None:
-  parm[eb.PAR_RASUM] = (1.0+parm[eb.PAR_RR]) / alt_par_aor
-      
-if alt_par_b is not None:
-  aor = (1.0+parm[eb.PAR_RR]) / parm[eb.PAR_RASUM]
-  ecc = math.hypot(parm[eb.PAR_ESINW], parm[eb.PAR_ECOSW])
-  parm[eb.PAR_COSI] = alt_par_b * (1.0 + parm[eb.PAR_ESINW]) / (aor * (1.0 - ecc*ecc))
 
 # Set up initial ephemeris based on parameter file.
 init_t0 = parm[eb.PAR_T0]
@@ -403,9 +388,25 @@ def obs_bl (ourparm):
 
   return bl
 
+# Translate parameter vector from transiting planet to EB form.
+def get_eb_vector (ourparm):
+  tmpparm = numpy.copy(ourparm)
+
+  ecc = math.hypot(ourparm[eb.PAR_ESINW], ourparm[eb.PAR_ECOSW])
+
+  tmpparm[eb.PAR_RASUM] = (1.0+ourparm[eb.PAR_RR]) / ourparm[PAR_AOR]
+  tmpparm[eb.PAR_COSI] = ourparm[PAR_B] * (1.0 + ourparm[eb.PAR_ESINW]) / (ourparm[PAR_AOR] * (1.0 - ecc*ecc))
+
+  return tmpparm
+
+# Wrapper for eb_model to translate parameter vector.
+def calc_model (ourparm, *args, **kwargs):
+  tmpparm = get_eb_vector(ourparm)
+  return eb.model(tmpparm, *args, **kwargs)
+
 # Objective function.
 def obj_func (ourparm, ymod, flags=0):
-  eb.model(ourparm, bjd, typ, flags, out=ymod)
+  calc_model(ourparm, bjd, typ, flags, out=ymod)
   ymod += obs_bl(ourparm)
 
 # A simple way to interface this to "lmmin".
@@ -502,11 +503,31 @@ def terminate_workers(obj):
 # Start with all data points included.
 newflag = numpy.ones_like(mag, dtype=numpy.bool)
 
+# Initialize bounds to do nothing.
+lbounds = numpy.empty_like(parm)
+lbounds.fill(-numpy.inf)
+
+ubounds = numpy.empty_like(parm)
+ubounds.fill(numpy.inf)
+
+# Simple lower bound for a/R_1.  It should really be "not inside the
+# star" but this can't be expressed as a simple box constraint.
+lbounds[PAR_AOR] = 0.0
+
+# Simple bounds for impact parameter.  An upper bound of 1 is not
+# correct and cuts off some valid grazing solutions, but it's used
+# here to ensure there's always an event in the generated light
+# curve.  Without this limit, if the solution manages to wander to
+# parts of parameter space where there's no event the derivatives
+# vanish and it can get stuck.
+lbounds[PAR_B] = 0.0
+ubounds[PAR_B] = 1.0
+
 # Clipping iteration loop.
 for iiter in range(5):
   flag = newflag
 
-  vfinal, verr, chisq, ndof = nlfit(fit_func, parm[plist], fixed, mag, e_mag, flag=flag)
+  vfinal, verr, chisq, ndof = nlfit(fit_func, parm[plist], fixed, mag, e_mag, bounds=(lbounds[plist], ubounds[plist]), flag=flag)
 
   # Residual
   ymod = numpy.empty_like(mag, dtype=numpy.double)
@@ -524,8 +545,8 @@ for iiter in range(5):
     # DONE
     break
 
-# Ensure final cosine inclination is positive.
-wc = plist == eb.PAR_COSI
+# Ensure final impact parameter is positive.
+wc = plist == PAR_B
 vfinal[wc] = numpy.absolute(vfinal[wc])
   
 ndim = len(plist)
@@ -563,8 +584,6 @@ for iparm in range(ndim):
                                                     verr[iparm],
                                                     plist_units[iparm])
       
-print "i =", math.degrees(math.acos(parm[eb.PAR_COSI])), "deg"
-      
 print 'residual scatter =', sigoff
 
 if args.m is not None:
@@ -598,8 +617,8 @@ if args.m is not None:
       for isim in range(100):
         trial = cent + pert * numpy.random.randn(ndim)
 
-        # Ensure cosine inclination is positive.
-        wc = plist == eb.PAR_COSI
+        # Ensure impact parameter is positive.
+        wc = plist == PAR_B
         trial[wc] = numpy.absolute(trial[wc])
 
         trialparm = numpy.copy(parm)
@@ -761,7 +780,7 @@ if args.m is not None:
     if theomega < 0.0:  # wrap to conventional range [0,360)
       theomega += 360.0
 
-    thephiperi = eb.phiperi(parm)
+    thephiperi = eb.phiperi(get_eb_vector(parm))
 
     # Derived parameters.
     nsamp = ch.shape[0]
@@ -771,9 +790,6 @@ if args.m is not None:
     for isamp in range(nsamp):
       thissamp = ch[isamp]
       parm[plist] = thissamp
-
-      incl = math.degrees(math.acos(parm[eb.PAR_COSI]))
-      aor = (1.0+parm[eb.PAR_RR])/parm[eb.PAR_RASUM]
 
       esinw = parm[eb.PAR_ESINW]
       ecosw = parm[eb.PAR_ECOSW]
@@ -788,11 +804,12 @@ if args.m is not None:
       n = round(domega / 360.0)
       argper = theomega + domega - n * 360.0
 
-      # Impact parameter.
-      b = aor * parm[eb.PAR_COSI] * (1.0 - ecc*ecc) / (1.0 + esinw)
+      # Inclination.
+      cosi = parm[PAR_B] * (1.0 + esinw) / (parm[PAR_AOR] * (1.0 - ecc*ecc))
+      incl = math.degrees(math.acos(cosi))
 
       # Contact points.
-      (ps, pe, ss, se) = eb.phicont(parm)
+      (ps, pe, ss, se) = eb.phicont(get_eb_vector(parm))
 
       # Convert primary phases from [0, 1] to [-0.5, 0.5].
       ps -= round(ps)
@@ -814,7 +831,7 @@ if args.m is not None:
       depthparm[eb.PAR_OOE12A] = 0
       depthparm[eb.PAR_OOE12B] = 0
 
-      lmid = eb.model(depthparm, pa, eb.OBS_LIGHT, eb.FLAG_PHI)
+      lmid = calc_model(depthparm, pa, eb.OBS_LIGHT, eb.FLAG_PHI)
 
       depthppt = (1.0-lmid)*1000.0
 
@@ -822,8 +839,6 @@ if args.m is not None:
 
       vder[isamp,:] = [omc*24.0*60.0,
                        incl,
-                       aor,
-                       b,
                        ecc, argper, dpp * parm[eb.PAR_P] * 24.0, depthppt]
 
     numpy.savez(args.m + "_der",
@@ -889,9 +904,6 @@ if args.m is not None:
     resid = mag - ymod
 
 else:
-  incl = math.degrees(math.acos(parm[eb.PAR_COSI]))
-  aor = (1.0+parm[eb.PAR_RR])/parm[eb.PAR_RASUM]
-    
   esinw = parm[eb.PAR_ESINW]
   ecosw = parm[eb.PAR_ECOSW]
 
@@ -900,11 +912,12 @@ else:
   if argper < 0.0:  # wrap to conventional range [0,360)
     argper += 360.0
 
-  # Impact parameter.
-  b = aor * parm[eb.PAR_COSI] * (1.0 - ecc*ecc) / (1.0 + esinw)
-  
+  # Inclination.
+  cosi = parm[PAR_B] * (1.0 + esinw) / (parm[PAR_AOR] * (1.0 - ecc*ecc))
+  incl = math.degrees(math.acos(cosi))
+
   # Contact points.
-  (ps, pe, ss, se) = eb.phicont(parm)
+  (ps, pe, ss, se) = eb.phicont(get_eb_vector(parm))
   
   # Convert primary phases from [0, 1] to [-0.5, 0.5].
   ps -= round(ps)
@@ -926,7 +939,7 @@ else:
   depthparm[eb.PAR_OOE12A] = 0
   depthparm[eb.PAR_OOE12B] = 0
   
-  lmid = eb.model(depthparm, pa, eb.OBS_LIGHT, eb.FLAG_PHI)
+  lmid = calc_model(depthparm, pa, eb.OBS_LIGHT, eb.FLAG_PHI)
   
   depthppt = (1.0-lmid)*1000.0
 
@@ -934,8 +947,6 @@ else:
   
   vder = numpy.array([omc*24.0*60.0,  # really this is O-C
                       incl,
-                      aor,
-                      b,
                       ecc, argper, dpp * parm[eb.PAR_P] * 24.0, depthppt])
 
   print "Derived parameters:"
@@ -953,7 +964,7 @@ else:
     print line
 
 # Contact points.
-(ps, pe, ss, se) = eb.phicont(parm)
+(ps, pe, ss, se) = eb.phicont(get_eb_vector(parm))
 
 # Convert primary phases from [0, 1] to [-0.5, 0.5].
 ps -= round(ps)
@@ -1088,8 +1099,8 @@ for inight in range(nnights):
     # Plot model with OOE parts taken off.
     dphi = (parm[eb.PAR_T0] + tbase - init_t0) / init_p
 
-    yooe = 0 #eb.model(parm, nightphi+xmp-dphi, tmp, eb.FLAG_PHI | eb.FLAG_NOEC)
-    ymp = eb.model(parm, nightphi+xmp-dphi, tmp, eb.FLAG_PHI)
+    yooe = 0 #calc_model(parm, nightphi+xmp-dphi, tmp, eb.FLAG_PHI | eb.FLAG_NOEC)
+    ymp = calc_model(parm, nightphi+xmp-dphi, tmp, eb.FLAG_PHI)
 
     plt.plot(xmp, (ymp-yooe) + ypern*ioff, color="red")
     
