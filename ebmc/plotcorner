@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import argparse
 import math
 import re
@@ -119,7 +121,7 @@ with open(args.file, "r") as fp:
       isim = int(ll[0])
 
       if isim != iline+1:
-        print >>sys.stderr, "numbering inconsistency:", isim, iline+1
+        print("numbering inconsistency:", isim, iline+1, file=sys.stderr)
         sys.exit(1)
 
       vdelt = numpy.zeros_like(vinit)

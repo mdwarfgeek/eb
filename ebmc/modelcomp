@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import argparse
 import math
 import re
@@ -25,7 +27,7 @@ def printpar(name, ll):
 
   fmt = "{0:10s} {1:."+str(ndp)+"f} +/- {2:."+str(ndp)+"f}"
 
-  print fmt.format(name, med, err)
+  print(fmt.format(name, med, err))
 
 # Augmented parameter list.
 parnames = list(eb.parnames)
@@ -69,7 +71,7 @@ else:
     funcr = mrrels[args.mrrel]
     funct = mass2teff.mass2teff()
   else:
-    print >>sys.stderr, "unknown relation:", mrrel
+    print("unknown relation:", mrrel, file=sys.stderr)
     sys.exit(1)
 
 # Read data (MC simulation files).
@@ -177,7 +179,7 @@ for filename in args.filelist:
         isim = int(ll[0])
 
         if isim != iline+1:
-          print >>sys.stderr, "numbering inconsistency:", isim, iline+1
+          print("numbering inconsistency:", isim, iline+1, file=sys.stderr)
           sys.exit(1)
         
         vdelt = numpy.zeros_like(vinit)
@@ -219,7 +221,7 @@ beta2 = r2 / modr2
 betatot = rtot / modrtot
 betarr = rr / modrr
 
-print "MCMC values:"
+print("MCMC values:")
 
 printpar("M_1", m1)
 printpar("M_2", m2)
@@ -228,7 +230,7 @@ printpar("R_2", r2)
 printpar("R_1+R_2", rtot)
 printpar("R_2/R_1", rr)
 
-print "Model values:"
+print("Model values:")
 
 printpar("R_1", modr1)
 printpar("R_2", modr2)
@@ -237,7 +239,7 @@ printpar("R_2/R_1", modrr)
 printpar("Teff_1", modt1)
 printpar("Teff_2", modt2)
 
-print "Inflation:"
+print("Inflation:")
 
 printpar("beta_1", beta1)
 printpar("beta_2", beta2)
