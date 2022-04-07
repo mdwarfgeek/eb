@@ -50,12 +50,7 @@ Dependencies
 Light curve generator (directory src)
 -------------------------------------
 
-Only a C99 compiler should be needed.  Some x86-specific assembly
-optimizations are included, which need a compiler supporting GNU
-syntax for inline assembler.  If another compiler or architecture is
-used, these are currently disabled.  More assembly language
-optimizations (particularly of the elliptic integrals) are in the
-works.
+Only a C99 compiler should be needed.
 
 Python module (directory python)
 --------------------------------
