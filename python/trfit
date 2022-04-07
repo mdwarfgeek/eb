@@ -288,13 +288,6 @@ derunits = ["mins", "deg", "", "deg", "hr", "ppt"]
 
 nder = len(dernames)
 
-# Initialize these.
-parm[eb.PAR_ROT1]   =  1.0
-parm[eb.PAR_FSPOT1] =  1.0
-
-parm[eb.PAR_ROT2]   =  1.0
-parm[eb.PAR_FSPOT2] =  1.0
-
 # Added parameters.
 for ids in range(nds):
   parm[pzp + ids] = -0.01       # mag zpt
