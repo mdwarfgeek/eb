@@ -16,7 +16,7 @@
 #
 # The first argument is a parameter file and the rest are light curves
 # as found in the tar file uploads on ExoFOP.  The parameter file is just
-# ASCII with 3 columns and should usually look something like:
+# ASCII with 3 or 4 columns and should usually look something like:
 #
 # T_0      2457890.12345  0
 # P              1.23456  0
@@ -42,10 +42,12 @@
 # 
 # The integers in the third column specify fixed (=0), or variable (=1)
 # parameters.  A value of 2 is allowed for parameters to be varied only
-# in MCMC but there are currently issues with initialization.  This
-# may be needed for fitting cos i which doesn't work very well with the
-# default unconstrained minimizer, the solution just gets stuck if it
-# wanders to places where there's no eclipse.
+# in MCMC but there are currently still some issues with initialization
+# and the standard deviations used for this may need to be tuned below.
+#
+# The optional fourth column, if given, introduces a Gaussian prior on
+# the parameter in the MCMC, with mean and standard deviation given by
+# the 2nd and 4th columns of the parameter file, respectively.
 #
 # Enough magnitude zero points and error scaling parameters for the
 # light curves given on the command line are added automatically.
@@ -122,6 +124,9 @@ if len(sys.argv) == 1:
   sys.exit(1)
 
 args = ap.parse_args()
+
+# Silence matplotlib warnings.
+matplotlib.set_loglevel("error")
 
 # Type 42 fonts needed for publication.
 matplotlib.rcParams["pdf.fonttype"] = 42
@@ -241,21 +246,65 @@ parm = numpy.zeros(eb.NPAR+nds+2*nnights+1, dtype=numpy.double)
 parm_names = list(eb.parnames)
 parm_units = list(eb.parunits)
 parm_texsym = list(eb.partexsym)
+parm_defpert = [
+  0.01,     # J
+  0.1,      # a/R_1
+  0.001,    # R_2/R_1
+  0.1,      # mu_1
+  0.1,      # mu_2
+  0.01,     # b
+  0.001,    # ecosw
+  0.01,     # esinw
+  0.01,     # grav_1
+  0.01,     # grav_2
+  0.001,    # refl_1
+  0.001,    # refl_2
+  0.01,     # q
+  0.01,     # tidang
+  0.01,     # L_3
+  0.001,    # Phi_0
+  0.001,    # m_0
+  0,        # integ (cannot be varied)
+  0.00001,  # P
+  0.001,    # T_0
+  0.1,      # mup_1
+  0.1,      # mup_2
+  0,        # cltt (not varied)
+  0.001,    # Rot_1
+  0.001,    # Rot_2
+  0,        # Fspot_1 (cannot be varied)
+  0,        # Fspot_2 (cannot be varied)
+  0.1,      # o_1
+  0.001,    # a_11
+  0.001,    # b_11
+  0.001,    # a_12
+  0.001,    # b_12
+  0.1,      # o_2
+  0.001,    # a_21
+  0.001,    # b_21
+  0.001,    # a_22
+  0.001,    # b_22
+  1.0,      # K_1+K_2
+  1.0       # gamma
+]
 
 for ids in range(nds):
   parm_names.append("m_{0:d}".format(ids))
   parm_units.append("mag")
   parm_texsym.append("m_{0:d}".format(ids))
+  parm_defpert.append(0.001)
 
 for inight in range(nnights):
   parm_names.append("k_{0:d}".format(inight))
   parm_units.append("")
   parm_texsym.append("k_{0:d}".format(inight))
+  parm_defpert.append(0.001)
 
 for inight in range(nnights):
   parm_names.append("s_{0:d}".format(inight))
   parm_units.append("")
   parm_texsym.append("s_{0:d}".format(inight))
+  parm_defpert.append(0.1)
 
 pzp = eb.NPAR
 pam = eb.NPAR+nds
@@ -265,6 +314,7 @@ pcm = eb.NPAR+nds+2*nnights
 parm_names.append("cm")
 parm_units.append("")
 parm_texsym.append("c")
+parm_defpert.append(0.1)
 
 # Alter parameter vector to use transiting planet parameter set.
 PAR_AOR = eb.PAR_RASUM
@@ -274,6 +324,9 @@ parm_names[PAR_AOR] = "a/R_1"
 parm_names[PAR_B] = "b"
 
 parm_units[eb.PAR_T0] = "BJD-TDB"
+
+# Convert default perturbation array to numpy array.
+parm_defpert = numpy.array(parm_defpert, dtype=numpy.double)
 
 # Name to parameter number mapping.
 name2iparm = {}
@@ -306,6 +359,10 @@ plist_names = []
 plist_texsym = []
 plist_units = []
 fixed = []
+
+prior_iparm = []
+prior_mean = []
+prior_sigma = []
 
 with open(args.pset, "r") as fp:
   for line in fp:
@@ -345,9 +402,24 @@ with open(args.pset, "r") as fp:
         else:
           print("unknown vary value:", vary, file=sys.stderr)
           sys.exit(1)
+
+        if sigma is not None:
+          prior_iparm.append(iparm)
+          prior_mean.append(value)
+          prior_sigma.append(sigma)
     else:
       print("unknown parameter:", name, file=sys.stderr)
       sys.exit(1)
+
+prior_iparm = numpy.array(prior_iparm, dtype=numpy.int)
+prior_mean = numpy.array(prior_mean)
+prior_sigma = numpy.array(prior_sigma)
+
+if len(prior_iparm):
+  print("Priors", prior_iparm, prior_mean, prior_sigma)
+
+# Use prior for default perturbation, if given.
+parm_defpert[prior_iparm] = prior_sigma
 
 # Set up initial ephemeris based on parameter file.
 init_t0 = parm[eb.PAR_T0]
@@ -436,6 +508,10 @@ def logpost (trial):
 
   # Priors on all "s" parameters.
   logprior = numpy.sum(numpy.log(s))
+
+  # User-specified Gaussian priors on transit parameters.
+  if len(prior_iparm) > 0:
+    logprior += 0.5 * numpy.sum(numpy.square((ourparm[prior_iparm] - prior_mean) / prior_sigma))
 
   # Convert to uniform prior on eccentricity.
   ecc = numpy.hypot(ourparm[eb.PAR_ECOSW], ourparm[eb.PAR_ESINW])
@@ -602,7 +678,7 @@ if args.m is not None:
       jparm = plist[iparm]
 
       if fixed[iparm]:
-        pert[iparm] = 0.1
+        pert[iparm] = parm_defpert[jparm]
 
     pos = [None]*nwalk
 
