@@ -299,10 +299,10 @@ EB_PAR_OOE22B   36
  names, the first digit is the star number, and the second digit
  represents the fundamental (1) or second harmonic (2) respectively.
  A refers to the coefficient multiplying sin(phase) and B to
- cos(phase), where the phase is equal to the mean anomaly multiplied
- by the rotation parameter (this means it includes PHI0).  So
- EB_PAR_OOE11A and EB_PAR_OOE11B are the coefficients for the
- fundamental on star 1, etc.
+ cos(phase), where the phase is the orbital phase (measured relative
+ to T0, and including the correction PHI0), multiplied by the rotation
+ parameter.  So EB_PAR_OOE11A and EB_PAR_OOE11B are the coefficients
+ for the fundamental on star 1, etc.
 
  If EB_PAR_OOE1O and EB_PAR_OOE2O are zero, the out of eclipse
  modulation is normalized so the maximum corresponds to there being no
@@ -327,7 +327,7 @@ EB_PAR_OOE22B   36
  the "ol1" array passed into the routine (if applicable) and can be
  used to extend or replace the standard spot model.
 
- The parameter FSPOT essentially parametrizes the effect of "spot
+ The parameter FSPOT essentially parameterizes the effect of "spot
  latitude", by controlling how much the surface brightness underneath
  the occulting star (i.e. the part subtracted off during eclipse) is
  affected by the spots.  A value of zero means only the light outside
