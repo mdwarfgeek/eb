@@ -521,8 +521,11 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
       sp.ol = (sp.oa1*so + sp.ob1*co +
                2*sp.oa2*so*co + sp.ob2*(co+so)*(co-so) - sp.oav);
     }
-    else
+    else {
+      so = 0;
+      co = 1;
       sp.ol = -sp.oav;
+    }
 
     if(ol1)
       sp.ol += ol1[p];
@@ -530,7 +533,10 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     sp.ol *= sp.l;
 
     if(ss.rot) {
-      inline_sincos(phio * ss.rot, so, co);
+      /* If they are the same, we already computed it above, so reuse */
+      if(sp.rot != ss.rot) {
+        inline_sincos(phio * ss.rot, so, co);
+      }
       ss.ol = (ss.oa1*so + ss.ob1*co +
                2*ss.oa2*so*co + ss.ob2*(co+so)*(co-so) - ss.oav);
     }
