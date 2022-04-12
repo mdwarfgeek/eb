@@ -29,6 +29,7 @@ struct star {
   DATATYPE u2;
   DATATYPE gd;
   DATATYPE refl;
+  DATATYPE beam;
 
   DATATYPE uss;     /* u1 + 2*u2 */
   DATATYPE ldint;   /* LD integral */
@@ -42,11 +43,12 @@ struct star {
   DATATYPE delt;
   DATATYPE l;
   DATATYPE rl;
+  DATATYPE bl;
   DATATYPE ol;
   DATATYPE ltot;
 
   double rot;       /* rotation parameter */
-  double qfltt;     /* light travel time mass ratio factor */
+  double qfac;      /* radial velocity of this component divided by total */
 
   DATATYPE fecs;    /* fraction of spots eclipsed */
   DATATYPE ob;      /* base spottedness out of eclipse */
@@ -142,7 +144,8 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   double se, ce, f, df, delta, vnorm, sv, cv;
   double dwdt, dw, sdw, cdw, ecosw, esinw, cosw, sinw;
   double svw, cvw, phio, stid, ctid, so, co;
-  double cltt, rv1, rv2, svw1, cvw1, svw2, cvw2, dys, dzs;
+  double ktotc, cltt, rv1, rv2, svw1, cvw1, svw2, cvw2, dys, dzs;
+  double vrad1, vrad2;
 
   DATATYPE jsb, rsum, cosi;
   DATATYPE atid, lth, zp;
@@ -184,7 +187,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   zp      = parm[EB_PAR_M0];
   tconj   = parm[EB_PAR_T0];
   period  = parm[EB_PAR_P];
-  cltt    = parm[EB_PAR_CLTT];
+  ktotc   = parm[EB_PAR_KTOTC];
 
   sp.rot  = parm[EB_PAR_ROT1];
   ss.rot  = parm[EB_PAR_ROT2];
@@ -205,6 +208,9 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
 
   dwdt    = parm[EB_PAR_DWDT];
 
+  sp.beam = parm[EB_PAR_BEAM1];
+  ss.beam = parm[EB_PAR_BEAM2];
+
   if(flags & EB_FLAG_PHI) {
     /* [0,1] phase, not time */
     tconj = 0.0;
@@ -223,8 +229,8 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   ecc = sqrt(esq);
   roe = sqrt(1.0 - esq);
 
-  /* Convert cltt from ktot/c to a omega sin i / c */
-  cltt *= roe;
+  /* Convert from ktot/c to cltt = a omega sin i / c */
+  cltt = ktotc * roe;
 
   /* Mean anomaly at inferior conjunction */
   maconj = atan2(roe * ecosw0, esq + esinw0) - roe * ecosw0 / (1 + esinw0);
@@ -275,10 +281,10 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
   sp.aorsq = 1.0 / sp.rsq;
   ss.aorsq = sp.aorsq * ss.rrsq;
 
-  /* 1 / (1+q) and -q / (1+q) scaling factors
-     used in light travel correction */
-  ss.qfltt = 1.0 / (1.0 + sp.q);
-  sp.qfltt = -sp.q * ss.qfltt;
+  /* 1 / (1+q) and -q / (1+q) scaling factors (-ve of the ones for radial velocity)
+     used in light travel correction and beaming */
+  ss.qfac = 1.0 / (1.0 + sp.q);
+  sp.qfac = -sp.q * ss.qfac;
 
   /* Mass ratio the other way up for secondary */
   if(sp.q > 0)
@@ -453,33 +459,37 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     cvw1 = cvw;
     cvw2 = cvw;
 
-    if(cltt) {
+    if(cltt && !(flags & EB_FLAG_NOLTT)) {
       /* Light travel corrected rv, rv*sin(v+w) and rv*cos(v+w) */
-      ltt(cltt * sp.qfltt,
+      ltt(cltt * sp.qfac,
           ecc, roe, sinw, cosw, ma, ea, se, ce, f,
           &rv1, &svw1, &cvw1);
-      ltt(cltt * ss.qfltt,
+      ltt(cltt * ss.qfac,
           ecc, roe, sinw, cosw, ma, ea, se, ce, f,
           &rv2, &svw2, &cvw2);
 
       /* Plane of sky coords star 1 - star 2 in CMS */
-      dys = cvw1 * sp.qfltt - cvw2 * ss.qfltt;
-      dzs = svw1 * sp.qfltt - svw2 * ss.qfltt;
+      dys = cvw1 * sp.qfac - cvw2 * ss.qfac;
+      dzs = svw1 * sp.qfac - svw2 * ss.qfac;
     }
     else {
       dys = cvw;
       dzs = svw;
     }
 
-    /* Handle radial velocity, if requested */
+    /* Compute radial velocity */
+    vrad1 = cvw1 / rv1 + ecosw;
+    vrad2 = cvw2 / rv2 + ecosw;
+
+    /* Handle return of radial velocity, if requested */
     if(typ[p] == EB_OBS_VRAD1) {
       /* vrad = gamma + K*out[p]
          out[p] = cos(v+w) + e cos w */
-      out[p] = cvw1 / rv1 + ecosw;
+      out[p] = vrad1;
       continue;  /* skip rest */
     }
     else if(typ[p] == EB_OBS_VRAD2) {
-      out[p] = cvw2 / rv2 + ecosw;
+      out[p] = vrad2;
       continue;
     }
     /* else: light needed */
@@ -580,9 +590,15 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     sp.rl = sp.refl * (tmp + cpsi);
     ss.rl = ss.refl * (tmp - cpsi);
 
+    /* Beaming, Shporer (2007, PASP, 129, 072001), Eq. 1.
+       ktotc * vrad * qfac gives negative of the radial velocity / c, which is
+       what's needed here (+ is toward the observer, light is enhanced). */
+    sp.bl = 4 * sp.beam * sp.l * ktotc * vrad1 * sp.qfac;
+    ss.bl = 4 * ss.beam * ss.l * ktotc * vrad2 * ss.qfac;
+
     /* Total uneclipsed light on each star */
-    sp.ltot = sp.l + sp.ol + sp.rl;
-    ss.ltot = ss.l + ss.ol + ss.rl;
+    sp.ltot = sp.l + sp.ol + sp.rl + sp.bl;
+    ss.ltot = ss.l + ss.ol + ss.rl + ss.bl;
 
     /* Which eclipse? */
     if(svw > 0)  /* primary */
@@ -746,7 +762,7 @@ void FUNC (double *parm, double *t, DATATYPE *ol1, DATATYPE *ol2,
     
     /* Take off the eclipse.  Assumes spots have the same limb
        darkening as the photosphere, seems reasonable. */
-    s->ltot -= fecl*s->l + fecl*s->ol*s->fecs + area*s->rl;
+    s->ltot -= fecl*s->l + fecl*s->ol*s->fecs + area*s->rl + fecl*s->bl;
 
     /* Handle light ratio, if requested */
     if(typ[p] == EB_OBS_LRAT)

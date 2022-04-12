@@ -36,8 +36,10 @@ the input and output files.  The parameter inputs are in ascii files.
 parameter fixed, 1: vary it in the L-M fit and the Monte Carlo, 2:
 hold it fixed in the L-M but vary it in the Monte Carlo.  Some
 parameters accept -1 to compute the value from other quantities in the
-problem (a particular example is "cltt", the light travel time
-constant).  "2" doesn't always work very well because the covariance
+problem (a particular example is "ktotc", which is just ktot/c if
+radial velocities are available, but could potentially be fit from
+light curves alone if there was strong beaming and no spot
+modulation).  "2" doesn't always work very well because the covariance
 matrix isn't properly populated (by the L-M) for these parameters
 before the Monte Carlo starts, which can confuse it (see below).
 

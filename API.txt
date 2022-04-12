@@ -248,20 +248,16 @@ EB_PAR_LDNON2   21
  Quadratic limb darkening parameters for star 1 and star 2.  See also
  LDLIN* above.  This parameter is often called "u_2" or "b".
 
-EB_PAR_CLTT     22
+EB_PAR_KTOTC    22
 
  Total radial velocity semiamplitude (star 1 + star 2, i.e. K_1 + K_2,
  the sum of the two semiamplitudes) divided by the speed of light.
 
- Used to correct for light travel time across the system (called the
- Romer delay in the solar system).  Set to zero to disable this
- correction (which is moderately expensive, it involves computing two
- extra solutions to a modified Kepler's equation).
+ Used to compute beaming and to correct for light travel time across
+ the system (called the Romer delay in the solar system).
 
- When light travel time corrections are enabled, time-dependent
- quantities in the parameter vector (particularly T0) are reckoned as
- if they were communicated to the observer by a light signal emitted
- from the system barycenter.
+ If set to zero, these corrections are disabled.  They can also be
+ controlled separately using flags, see below.
 
 EB_PAR_ROT1     23
 EB_PAR_ROT2     24
@@ -350,7 +346,20 @@ EB_PAR_DWDT     37
  in radians / time unit (time units are those of the time array and
  orbital period, usually days).
 
-EB_NPAR         38
+EB_PAR_BEAM1    38
+EB_PAR_BEAM2    39
+
+ Beaming coefficient alpha_beam.  Defined here as:
+
+ alpha_beam = (3 - d log F_nu / d log nu) / 4 
+
+ following Shporer (2007, PASP, 129, 072001), Eq. 5, such that the
+ bolometric value is unity and zero produces no beaming.
+
+ Note that there are several different definitions of alpha_beam
+ commonly seen in the literature.
+
+EB_NPAR         40
 
  Total length of the parameter vector.
 
@@ -384,6 +393,20 @@ EB_FLAG_NOELL   8
  curves where the baseline was already flattened, in conjunction with
  disabling the other quantities affecting the baseline (reflection and
  spots).
+
+EB_FLAG_NOLTT  16
+
+ Disables the light travel time correction.
+
+ This correction is moderately expensive, it involves computing two
+ extra solutions to a modified Kepler's equation, so one may wish to
+ set the flag to improve performance when the correction is not known
+ or not needed.
+
+ When light travel time corrections are enabled, time-dependent
+ quantities in the parameter vector (particularly T0) are reckoned as
+ if they were communicated to the observer by a light signal emitted
+ from the system barycenter.
 
 Model outputs / "observation types" ("typ")
 -------------------------------------------

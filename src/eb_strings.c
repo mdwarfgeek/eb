@@ -23,7 +23,7 @@ char *eb_parnames[EB_NPAR] = {
   "T_0",
   "mup_1",
   "mup_2",
-  "cltt",
+  "ktotc",
   "Rot_1",
   "Rot_2",
   "Fspot_1",
@@ -38,7 +38,9 @@ char *eb_parnames[EB_NPAR] = {
   "b_21",
   "a_22",
   "b_22",
-  "dwdt"
+  "dwdt",
+  "beam_1",
+  "beam_2"
 };
 
 char *eb_partexsym[EB_NPAR] = {
@@ -79,7 +81,9 @@ char *eb_partexsym[EB_NPAR] = {
   "b_{21}",
   "a_{22}",
   "b_{22}",
-  "d\\omega/dt"
+  "d\\omega/dt",
+  "\\alpha_{{\rm beam},1}",
+  "\\alpha_{{\rm beam},2}"
 };
 
 char *eb_parunits[EB_NPAR] = {
@@ -120,7 +124,9 @@ char *eb_parunits[EB_NPAR] = {
   "",
   "",
   "",
-  "rad/day"
+  "rad/day",
+  "",
+  ""
 };
 
 char *eb_dernames[EB_NDER] = {

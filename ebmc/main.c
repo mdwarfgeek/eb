@@ -227,10 +227,12 @@ int main (int argc, char *argv[]) {
   vfix[EB_PAR_GD2] = 0.32;
   vfix[EB_PAR_REFL1] = 0.4;  /* standard value for albedo */
   vfix[EB_PAR_REFL2] = 0.4;
+  vfix[EB_PAR_BEAM1] = 1.0;  /* standard value for beaming */
+  vfix[EB_PAR_BEAM2] = 1.0;
   vfix[EB_PAR_TIDANG] = 0.0;
   vfix[EB_PAR_INTEG] = 1.0;  /* for compatibility only, not used */
 
-  varyfix[EB_PAR_CLTT] = -1;  /* default is to compute */
+  varyfix[EB_PAR_KTOTC] = -1;  /* default is to compute */
 
   if(read_pset(argv[0],
                ldtype, vfix, varyfix, vsgfix,

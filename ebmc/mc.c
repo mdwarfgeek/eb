@@ -165,8 +165,8 @@ static int mc_out (struct fit_parms *par, double *ainit,
   }
 
   /* Light travel time parameter */
-  if(par->vary[EB_PAR_CLTT] < 0)
-    vinit[EB_PAR_CLTT] = vinit[PAR_KTOT]*1000 / EB_LIGHT;
+  if(par->vary[EB_PAR_KTOTC] < 0)
+    vinit[EB_PAR_KTOTC] = vinit[PAR_KTOT]*1000 / EB_LIGHT;
 
   /* Argument of periastron needs special treatment */
   theomega = atan2(vinit[EB_PAR_ESINW], vinit[EB_PAR_ECOSW]) * 180.0/M_PI;
@@ -698,8 +698,8 @@ int read_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
         }
         
         /* Light travel time parameter */
-        if(par->vary[EB_PAR_CLTT] < 0)
-          v[EB_PAR_CLTT] = v[PAR_KTOT]*1000 / EB_LIGHT;
+        if(par->vary[EB_PAR_KTOTC] < 0)
+          v[EB_PAR_KTOTC] = v[PAR_KTOT]*1000 / EB_LIGHT;
 
         /* Derived parameters */
         eb_getvder(v, v[PAR_GAMMA], v[PAR_KTOT], vder);
@@ -1197,8 +1197,8 @@ int do_mc (struct fit_parms *par, FILE *ofp, FILE *tfp,
     }
 
     /* Light travel time parameter */
-    if(par->vary[EB_PAR_CLTT] < 0)
-      vtrial[EB_PAR_CLTT] = vtrial[PAR_KTOT]*1000 / EB_LIGHT;
+    if(par->vary[EB_PAR_KTOTC] < 0)
+      vtrial[EB_PAR_KTOTC] = vtrial[PAR_KTOT]*1000 / EB_LIGHT;
 
     newesq = vtrial[EB_PAR_ECOSW]*vtrial[EB_PAR_ECOSW] + 
              vtrial[EB_PAR_ESINW]*vtrial[EB_PAR_ESINW];

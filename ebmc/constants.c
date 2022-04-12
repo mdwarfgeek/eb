@@ -33,7 +33,7 @@ double default_sigguess[NPARFIX] = {
   0.001,   /* T_0 */
   0.1,     /* mup_1 */
   0.1,     /* mup_2 */
-  0,       /* cltt (not varied) */
+  1.0e-6,  /* ktotc */
   0.001,   /* Rot_1 */
   0.001,   /* Rot_2 */
   0,       /* Fspot_1 (cannot be varied) */
@@ -48,6 +48,9 @@ double default_sigguess[NPARFIX] = {
   0.001,   /* b_21 */
   0.001,   /* a_22 */
   0.001,   /* b_22 */
+  1.0e-7,  /* dwdt */
+  0.01,    /* beam_1 */
+  0.01,    /* beam_2 */
   1.0,     /* K_1+K_2 */
   1.0      /* gamma */
 };

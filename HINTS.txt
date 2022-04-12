@@ -56,7 +56,7 @@ one star only.  However, for most systems I work on (M-dwarfs, usually
 with spots) it is very small and buried underneath much larger spot
 modulations, and I tend to simply predict an approximate reflection
 effect based on an assumed albedo.  The mass ratio (Q) comes from the
-spectroscopic orbit, as does CLTT.
+spectroscopic orbit, as does KTOTC.
 
 I haven't needed to touch TIDANG, most of my systems have not had
 strong ellipsoidal variations.
@@ -248,6 +248,8 @@ EB_PAR_OOE21A
 EB_PAR_OOE21B
 EB_PAR_OOE22A
 EB_PAR_OOE22B
+EB_PAR_BEAM1
+EB_PAR_BEAM2
 
 Geometric / orbital parameters:
 
@@ -260,7 +262,7 @@ EB_PAR_Q
 EB_PAR_PHI0
 EB_PAR_P
 EB_PAR_T0
-EB_PAR_CLTT
+EB_PAR_KTOTC
 EB_PAR_ROT1
 EB_PAR_ROT2
 EB_PAR_DWDT
@@ -303,10 +305,12 @@ communicated to the observer by a light signal emitted at the system
 barycenter (for very small mass ratios, this is essentially how it
 would be defined in radial velocities, i.e. from light emitted at the
 star).  Therefore for compatibility with existing analysis the user
-may wish or need to set EB_PAR_CLTT to zero, or adjust T0 to remove
-the light travel time correction so it agrees with convention.  Note
-that the light travel time calculation also requires the mass ratio
-(EB_PAR_Q) to be set.
+may wish or need to disable this correction by setting EB_FLAG_NOLTT
+or (if the calculation of beaming is also not needed) by setting
+EB_PAR_KTOTC to zero.  Alternatively, the value of T0 could be
+adjusted to remove the light travel time correction so it agrees with
+convention.  Note that the light travel time and beaming calculations
+also require the mass ratio (EB_PAR_Q) to be set.
 
 Note that neglecting light travel time can yield "false eccentricity",
 which appears as a small contribution to e cos omega, when using

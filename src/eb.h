@@ -46,7 +46,7 @@
 #define EB_PAR_T0      19  /* epoch of inferior conjunction if phi0=0 */
 #define EB_PAR_LDNON1  20
 #define EB_PAR_LDNON2  21
-#define EB_PAR_CLTT    22  /* ktot / c if want light travel time corr */
+#define EB_PAR_KTOTC   22  /* ktot / c for beaming and light travel time corr */
 #define EB_PAR_ROT1    23  /* rotation parameter */
 #define EB_PAR_ROT2    24
 #define EB_PAR_FSPOT1  25  /* fraction of spots eclipsed */
@@ -62,13 +62,19 @@
 #define EB_PAR_OOE22A  35  /* sin(2*...) coeff star 2 */
 #define EB_PAR_OOE22B  36  /* cos(2*...) coeff star 2 */
 #define EB_PAR_DWDT    37  /* apsidal precession rate (rad/day) */
-#define EB_NPAR        38
+#define EB_PAR_BEAM1   38  /* alpha_beam for star 1 */
+#define EB_PAR_BEAM2   39  /* alpha_beam for star 2 */
+#define EB_NPAR        40
+
+/* Alias for compatibility */
+#define EB_PAR_CLTT    EB_PAR_KTOTC
 
 /* Flags */
-#define EB_FLAG_REFL  0x01  /* reflection rather than albedo */
-#define EB_FLAG_PHI   0x02  /* phase rather than time */
-#define EB_FLAG_NOEC  0x04  /* disable eclipse calculation */
-#define EB_FLAG_NOELL 0x08  /* disable ellipsoidal */
+#define EB_FLAG_REFL   0x01  /* reflection rather than albedo */
+#define EB_FLAG_PHI    0x02  /* phase rather than time */
+#define EB_FLAG_NOEC   0x04  /* disable eclipse calculation */
+#define EB_FLAG_NOELL  0x08  /* disable ellipsoidal */
+#define EB_FLAG_NOLTT  0x10  /* disable light travel time correction */
 
 /* Observation types we can request from the light curve generator. */
 #define EB_OBS_MAG      0  /* magnitude */

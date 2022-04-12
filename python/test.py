@@ -25,17 +25,18 @@ parm[eb.PAR_Q]      =  0.6904
 
 # Light travel time coefficient.
 ktot = 55.602793  # K_1+K_2 in km/s
-cltt = 1000*ktot / eb.LIGHT
+ktotc = 1000*ktot / eb.LIGHT
 
 # Set to zero if you don't need light travel correction (it's fairly slow
 # and can often be neglected).
-parm[eb.PAR_CLTT]   =  cltt      # ktot / c
+parm[eb.PAR_KTOTC]  =  ktotc     # ktot / c
 
 # Radiative properties of star 1.
 parm[eb.PAR_LDLIN1] =  0.2094    # u1 star 1
 parm[eb.PAR_LDNON1] =  0.6043    # u2 star 1
 parm[eb.PAR_GD1]    =  0.32      # gravity darkening, std. value
 parm[eb.PAR_REFL1]  =  0.4       # albedo, std. value
+parm[eb.PAR_BEAM1]  =  1.0       # beaming
 
 # Spot model.  Assumes spots on star 1 and not eclipsed.
 parm[eb.PAR_ROT1]   =  0.636539  # rotation parameter (1 = sync.)
@@ -52,6 +53,7 @@ parm[eb.PAR_LDLIN2] = parm[eb.PAR_LDLIN1]
 parm[eb.PAR_LDNON2] = parm[eb.PAR_LDNON1]
 parm[eb.PAR_GD2]    = parm[eb.PAR_GD1]
 parm[eb.PAR_REFL2]  = parm[eb.PAR_REFL1]
+parm[eb.PAR_BEAM2]  = parm[eb.PAR_BEAM1]
 
 # Orbital parameters.
 parm[eb.PAR_ECOSW]  =  0.152408  # ecosw
@@ -62,8 +64,9 @@ parm[eb.PAR_T0]     = 2455290.046183  # T0 (epoch of primary eclipse)
 # OTHER NOTES:
 #
 # To do standard transit models (a'la Mandel & Agol),
-# set J=0, q=0, cltt=0, albedo=0.
-# This makes the secondary dark, and disables ellipsoidal and reflection.
+# set J=0, q=0, ktotc=0, albedo=0, beam=0.
+# This makes the secondary dark, and disables ellipsoidal, reflection
+# and beaming.
 #
 # The strange parameterization of radial velocity is to retain the
 # flexibility to be able to model just light curves, SB1s, or SB2s.

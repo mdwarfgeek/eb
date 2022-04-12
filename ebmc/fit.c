@@ -230,8 +230,8 @@ int do_fit (struct fit_parms *par, int nsigma, FILE *ofp, char *errstr) {
     }
 
     /* Light travel time parameter */
-    if(par->vary[EB_PAR_CLTT] < 0)
-      v[EB_PAR_CLTT] = v[PAR_KTOT]*1000 / EB_LIGHT;
+    if(par->vary[EB_PAR_KTOTC] < 0)
+      v[EB_PAR_KTOTC] = v[PAR_KTOT]*1000 / EB_LIGHT;
 
     for(idat = 0; idat < ndata; idat++) {
       chisq = 0.0;

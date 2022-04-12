@@ -110,8 +110,8 @@ void fit_func (struct fit_parms *par, int id,
   }
 
   /* Light travel time parameter */
-  if(par->vary[EB_PAR_CLTT] < 0)
-    v[EB_PAR_CLTT] = v[PAR_KTOT]*1000 / EB_LIGHT;
+  if(par->vary[EB_PAR_KTOTC] < 0)
+    v[EB_PAR_KTOTC] = v[PAR_KTOT]*1000 / EB_LIGHT;
 
   /* Priors are easy, no calculations needed */
   if(ot == OBS_PRIOR) {

@@ -457,7 +457,7 @@ static IDL_STRUCT_TAG_DEF eb_const_tags[] = {
   { "PAR_T0",     NULL, (void *) IDL_TYP_LONG,   0 },
   { "PAR_LDNON1", NULL, (void *) IDL_TYP_LONG,   0 },
   { "PAR_LDNON2", NULL, (void *) IDL_TYP_LONG,   0 },
-  { "PAR_CLTT",   NULL, (void *) IDL_TYP_LONG,   0 },
+  { "PAR_KTOTC",  NULL, (void *) IDL_TYP_LONG,   0 },
   { "PAR_ROT1",   NULL, (void *) IDL_TYP_LONG,   0 },
   { "PAR_ROT2",   NULL, (void *) IDL_TYP_LONG,   0 },
   { "PAR_FSPOT1", NULL, (void *) IDL_TYP_LONG,   0 },
@@ -473,12 +473,17 @@ static IDL_STRUCT_TAG_DEF eb_const_tags[] = {
   { "PAR_OOE22A", NULL, (void *) IDL_TYP_LONG,   0 },
   { "PAR_OOE22B", NULL, (void *) IDL_TYP_LONG,   0 },
   { "PAR_DWDT",   NULL, (void *) IDL_TYP_LONG,   0 },
+  { "PAR_BEAM1",  NULL, (void *) IDL_TYP_LONG,   0 },
+  { "PAR_BEAM2",  NULL, (void *) IDL_TYP_LONG,   0 },
   { "NPAR",       NULL, (void *) IDL_TYP_LONG,   0 },
+
+  { "PAR_CLTT",   NULL, (void *) IDL_TYP_LONG,   0 },
 
   { "FLAG_REFL",  NULL, (void *) IDL_TYP_LONG,   0 },
   { "FLAG_PHI",   NULL, (void *) IDL_TYP_LONG,   0 },
   { "FLAG_NOEC",  NULL, (void *) IDL_TYP_LONG,   0 },
   { "FLAG_NOELL", NULL, (void *) IDL_TYP_LONG,   0 },
+  { "FLAG_NOLTT", NULL, (void *) IDL_TYP_LONG,   0 },
 
   { "OBS_MAG",    NULL, (void *) IDL_TYP_BYTE,   0 },
   { "OBS_LIGHT",  NULL, (void *) IDL_TYP_BYTE,   0 },
@@ -550,7 +555,7 @@ static struct {
   IDL_LONG par_t0;
   IDL_LONG par_ldnon1;
   IDL_LONG par_ldnon2;
-  IDL_LONG par_cltt;
+  IDL_LONG par_ktotc;
   IDL_LONG par_rot1;
   IDL_LONG par_rot2;
   IDL_LONG par_fspot1;
@@ -566,12 +571,17 @@ static struct {
   IDL_LONG par_ooe22a;
   IDL_LONG par_ooe22b;
   IDL_LONG par_dwdt;
+  IDL_LONG par_beam1;
+  IDL_LONG par_beam2;
   IDL_LONG npar;
+
+  IDL_LONG par_cltt;
 
   IDL_LONG flag_refl;
   IDL_LONG flag_phi;
   IDL_LONG flag_noec;
   IDL_LONG flag_noell;
+  IDL_LONG flag_noltt;
 
   unsigned char obs_mag;
   unsigned char obs_light;
@@ -640,7 +650,7 @@ static struct {
   EB_PAR_T0,
   EB_PAR_LDNON1,
   EB_PAR_LDNON2,
-  EB_PAR_CLTT,
+  EB_PAR_KTOTC,
   EB_PAR_ROT1,
   EB_PAR_ROT2,
   EB_PAR_FSPOT1,
@@ -656,12 +666,17 @@ static struct {
   EB_PAR_OOE22A,
   EB_PAR_OOE22B,
   EB_PAR_DWDT,
+  EB_PAR_BEAM1,
+  EB_PAR_BEAM2,
   EB_NPAR,
+
+  EB_PAR_CLTT,
 
   EB_FLAG_REFL,
   EB_FLAG_PHI,
   EB_FLAG_NOEC,
   EB_FLAG_NOELL,
+  EB_FLAG_NOLTT,
 
   EB_OBS_MAG,
   EB_OBS_LIGHT,
