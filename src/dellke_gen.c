@@ -43,8 +43,51 @@ static const double dellke_coeff[40] = {
 };
 
 /* Computes K(k) and E(e) given y=1-k^2.  v[0] receives K and v[1] receives E.
-   The output vector format is to maintain compatibility with the assembly
-   language routine for SSE2. */
+   The output vector format is to maintain compatibility with the manually
+   vectorized FMA routine. */
+
+#if defined(__amd64) && defined(__FMA__)
+
+#include <immintrin.h>
+
+/* FMA version */
+
+void dellke_gen (double y, double v[2]) {
+  __m128d yy, ly, sac, sbd;
+
+  yy = _mm_set1_pd(y);
+  ly = _mm_set1_pd(log(y));
+
+  /* Sum polynomials */
+  sac = _mm_set_pd(dellke_coeff[1], dellke_coeff[0]);
+  sbd = _mm_set_pd(dellke_coeff[3], dellke_coeff[2]);
+
+  sac = _mm_fmadd_pd(sac, yy, _mm_set_pd(dellke_coeff[5], dellke_coeff[4]));
+  sbd = _mm_fmadd_pd(sbd, yy, _mm_set_pd(dellke_coeff[7], dellke_coeff[6]));
+  sac = _mm_fmadd_pd(sac, yy, _mm_set_pd(dellke_coeff[9], dellke_coeff[8]));
+  sbd = _mm_fmadd_pd(sbd, yy, _mm_set_pd(dellke_coeff[11], dellke_coeff[10]));
+  sac = _mm_fmadd_pd(sac, yy, _mm_set_pd(dellke_coeff[13], dellke_coeff[12]));
+  sbd = _mm_fmadd_pd(sbd, yy, _mm_set_pd(dellke_coeff[15], dellke_coeff[14]));
+  sac = _mm_fmadd_pd(sac, yy, _mm_set_pd(dellke_coeff[17], dellke_coeff[16]));
+  sbd = _mm_fmadd_pd(sbd, yy, _mm_set_pd(dellke_coeff[19], dellke_coeff[18]));
+  sac = _mm_fmadd_pd(sac, yy, _mm_set_pd(dellke_coeff[21], dellke_coeff[20]));
+  sbd = _mm_fmadd_pd(sbd, yy, _mm_set_pd(dellke_coeff[23], dellke_coeff[22]));
+  sac = _mm_fmadd_pd(sac, yy, _mm_set_pd(dellke_coeff[25], dellke_coeff[24]));
+  sbd = _mm_fmadd_pd(sbd, yy, _mm_set_pd(dellke_coeff[27], dellke_coeff[26]));
+  sac = _mm_fmadd_pd(sac, yy, _mm_set_pd(dellke_coeff[29], dellke_coeff[28]));
+  sbd = _mm_fmadd_pd(sbd, yy, _mm_set_pd(dellke_coeff[31], dellke_coeff[30]));
+  sac = _mm_fmadd_pd(sac, yy, _mm_set_pd(dellke_coeff[33], dellke_coeff[32]));
+  sbd = _mm_fmadd_pd(sbd, yy, _mm_set_pd(dellke_coeff[35], dellke_coeff[34]));
+  sac = _mm_fmadd_pd(sac, yy, _mm_set_pd(dellke_coeff[37], dellke_coeff[36]));
+  sbd = _mm_fmadd_pd(sbd, yy, _mm_set_pd(dellke_coeff[39], dellke_coeff[38]));
+
+  /* Result */
+  _mm_store_pd(v, _mm_fnmadd_pd(sbd, ly, sac));
+}
+
+#else
+
+/* Generic C version */
 
 void dellke_gen (double y, double v[2]) {
   double sa, sb, sc, sd, ly;
@@ -75,3 +118,4 @@ void dellke_gen (double y, double v[2]) {
   v[1] = sc - sd*ly;
 }
 
+#endif

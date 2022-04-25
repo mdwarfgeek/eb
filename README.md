@@ -104,6 +104,14 @@ Automatic dependency generation for header files is supported, and
 recommended if you plan to update using git or make modifications.
 Run "make depend" before "make" to get this.
 
+The default compiler options should produce a compatible binary.  On
+x86-64, use of the FMA instruction set may be worthwhile (available on
+Intel Haswell / 4000 series Core CPUs or newer, AMD Piledriver or
+newer, including Zen CPUs such as Ryzen).  If the compiled binary will
+only be run on CPUs with this feature available, adding -mfma to OPT
+in make.inc should improve performance slightly by using an optimized
+version of the elliptic integrals implemented using SIMD intrinsics.
+
 Acknowledgments
 ===============
 
