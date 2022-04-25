@@ -1,5 +1,5 @@
 PYTHON?=python
-LIB?=eb.so
+LIB?=eb*.so
 
 .PHONY: all test clean
 
