@@ -10,22 +10,23 @@
 
 static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   static char *kwlist[] = { "parm", "t", "typ",
-                            "flags", "out", "ol1", "ol2",
+                            "flags", "out", "ol1", "ol2", "iecl",
                             NULL };
   PyObject *parmarg = NULL, *targ = NULL, *typarg = NULL;
   PyObject *parmarr = NULL, *tarr = NULL, *typarr = NULL;
 
-  PyObject *outarg = NULL, *ol1arg = NULL, *ol2arg = NULL;
-  PyObject *outarr = NULL, *ol1arr = NULL, *ol2arr = NULL;
+  PyObject *outarg = NULL, *ol1arg = NULL, *ol2arg = NULL, *ieclarg = NULL;
+  PyObject *outarr = NULL, *ol1arr = NULL, *ol2arr = NULL, *ieclarr = NULL;
   
   double *ol1 = NULL, *ol2 = NULL;
+  uint8_t *iecl = NULL;
 
   int flags = 0, npt;
 
   /* Get arguments */
-  if(!PyArg_ParseTupleAndKeywords(args, keywds, "OOO|iOOO", kwlist,
+  if(!PyArg_ParseTupleAndKeywords(args, keywds, "OOO|iOOOO", kwlist,
                                   &parmarg, &targ, &typarg,
-                                  &flags, &outarg, &ol1arg, &ol2arg))
+                                  &flags, &outarg, &ol1arg, &ol2arg, &ieclarg))
     goto error;
 
   /* Get array arguments */
@@ -105,13 +106,28 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
       goto error;
   }
 
+  /* Eclipse flag array */
+  if(ieclarg && ieclarg != Py_None) {
+    ieclarr = PyArray_FROM_OTF(ieclarg, NPY_UINT8, NPY_OUT_ARRAY);
+    if(!ieclarr)
+      goto error;
+
+    if(PyArray_Size(ieclarr) < npt) {
+      PyErr_SetString(PyExc_IndexError,
+                      "'iecl' vector is too short");
+      goto error;
+    }
+
+    iecl = (uint8_t *) PyArray_DATA(ieclarr);
+  }
+
   /* Compute result */
   eb_model_dbl((double *) PyArray_DATA(parmarr),
                (double *) PyArray_DATA(tarr),
                ol1, ol2,
                (uint8_t *) PyArray_DATA(typarr),
                (double *) PyArray_DATA(outarr),
-               NULL,
+               iecl,
                flags, npt);
 
   /* Done */
@@ -124,6 +140,9 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   }
   if(ol2arr) {
     Py_DECREF(ol2arr);
+  }
+  if(ieclarr) {
+    Py_DECREF(ieclarr);
   }
 
   if(outarg && outarg != Py_None) {
@@ -141,6 +160,7 @@ static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   Py_XDECREF(typarr);
   Py_XDECREF(ol1arr);
   Py_XDECREF(ol2arr);
+  Py_XDECREF(ieclarr);
   PyArray_XDECREF_ERR((PyArrayObject *) outarr);
 
   return(NULL);
@@ -383,7 +403,8 @@ static PyMethodDef eb_methods[] = {
     "flags -- integer bitmask of FLAG_* values.\n"
     "out   -- store model in user-supplied double array.\n"
     "ol1   -- fractional adjustment to light of star 1.\n"
-    "ol2   -- fractional adjustment to light of star 2.\n\n"
+    "ol2   -- fractional adjustment to light of star 2.\n"
+    "iecl  -- store eclipse flag in user-supplied uint8 array.\n\n"
     "Arguments t and typ must be the same shape, and for best\n"
     "performance these arrays should use contiguous storage.\n"
     "Returned array y will be the same shape as t and contains\n"
