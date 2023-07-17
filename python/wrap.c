@@ -8,6 +8,20 @@
 
 #include "eb.h"
 
+/* This macro, which was recommended by all of the documentation back
+ * when I wrote this module, was deprecated in Numpy API 1.14 and
+ * removed in 1.24.  There seems to be no good reason for removing it
+ * as far as I can tell, especially when the recommended replacement
+ * is two lines rather than one and uses a function that was brand new
+ * in 1.14 so isn't backwards compatible.  We therefore just restore
+ * the macro using the currently recommended method so we can retain
+ * compatibility with pre-1.14 numpy API. */
+#ifndef PyArray_XDECREF_ERR
+#define PyArray_XDECREF_ERR(o)                                  \
+  PyArray_DiscardWritebackIfCopy((PyArrayObject *) (o));        \
+  Py_XDECREF(o)
+#endif
+
 static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   static char *kwlist[] = { "parm", "t", "typ",
                             "flags", "out", "ol1", "ol2", "iecl",
