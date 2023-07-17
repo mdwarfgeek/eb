@@ -151,8 +151,8 @@ mag = numpy.empty([0])
 e_mag = numpy.empty([0])
 airmass = numpy.empty([0])
 cm = numpy.empty([0])
-dataset = numpy.empty([0], dtype=numpy.int)
-night = numpy.empty([0], dtype=numpy.int)
+dataset = numpy.empty([0], dtype=int)
+night = numpy.empty([0], dtype=int)
 
 ypern = 0.01
 
@@ -192,7 +192,7 @@ for filename in args.filelist:
     segs[s] = i
 
   # Remap them to decide where we put the new DCs.
-  idclist = numpy.array([segs[s] for s in lc["s"]], dtype=numpy.int)
+  idclist = numpy.array([segs[s] for s in lc["s"]], dtype=int)
 
   print("For", filename, "fitting", len(segs), "DC offsets")
 
@@ -206,10 +206,10 @@ for filename in args.filelist:
     thiscm = thislc["cm"]
 
     # Dataset index so we know which z.p. coeff to use.
-    thisdataset = numpy.empty_like(thisbjd, dtype=numpy.int)
+    thisdataset = numpy.empty_like(thisbjd, dtype=int)
     thisdataset.fill(nds)
 
-    thisnight = numpy.empty_like(thisbjd, dtype=numpy.int)
+    thisnight = numpy.empty_like(thisbjd, dtype=int)
     thisnight.fill(thenight)
 
     # Append to main arrays.
@@ -412,7 +412,7 @@ with open(args.pset, "r") as fp:
       print("unknown parameter:", name, file=sys.stderr)
       sys.exit(1)
 
-prior_iparm = numpy.array(prior_iparm, dtype=numpy.int)
+prior_iparm = numpy.array(prior_iparm, dtype=int)
 prior_mean = numpy.array(prior_mean)
 prior_sigma = numpy.array(prior_sigma)
 
@@ -445,8 +445,8 @@ plist_names = [ parm_names[ipar] for ipar in plist ]
 plist_units = [ parm_units[ipar] for ipar in plist ]
 plist_texsym = [ parm_texsym[ipar] for ipar in plist ]
 
-plist = numpy.array(plist, dtype=numpy.int)
-fixed = numpy.array(fixed, dtype=numpy.bool)
+plist = numpy.array(plist, dtype=int)
+fixed = numpy.array(fixed, dtype=bool)
 
 # Baseline model.
 def obs_bl (ourparm):
@@ -573,7 +573,7 @@ def terminate_workers(obj):
     obj.terminate()
     
 # Start with all data points included.
-newflag = numpy.ones_like(mag, dtype=numpy.bool)
+newflag = numpy.ones_like(mag, dtype=bool)
 
 # Initialize bounds to do nothing.
 lbounds = numpy.empty_like(parm)
@@ -783,7 +783,7 @@ if args.m is not None:
 
     vmed = numpy.empty([ndim])
     vad = numpy.empty([ndim])
-    vndp = numpy.empty([ndim], dtype=numpy.int)
+    vndp = numpy.empty([ndim], dtype=int)
 
     ecc_kh_ndp = None
 
