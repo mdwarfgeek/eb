@@ -41,7 +41,7 @@ LM_LIBS?=-L$(HOME)/lib64 -lmpfit
 # -L/sw/lib -laquaterm -Wl,-framework -Wl,Foundation -lpng
 # 
 PGPLOT_INC?=-I$(PGPLOT_DIR) -DHAVE_PGPLOT
-PGPLOT_LIBS?=-L$(PGPLOT_DIR) -lpgplot -lcpgplot -L/usr/X11R6/lib -lX11
+PGPLOT_LIBS?=-L$(PGPLOT_DIR) -lcpgplot -lpgplot -L/usr/X11R6/lib -lX11
 
 ### End constants section ###
 
