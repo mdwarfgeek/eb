@@ -2,9 +2,10 @@
 
 import os
 import distutils.core
-import numpy.distutils.misc_util
 
-inc = numpy.distutils.misc_util.get_numpy_include_dirs()
+import numpy
+inc = [ numpy.get_include() ]
+
 inc.append("../src")
 
 mod = distutils.core.Extension("eb",

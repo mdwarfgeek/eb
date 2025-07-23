@@ -22,6 +22,19 @@
   Py_XDECREF(o)
 #endif
 
+/* If we're compiling without the pre-1.7 API, restore these macros */
+#ifndef NPY_FORCECAST
+#define NPY_FORCECAST NPY_ARRAY_FORCECAST
+#endif
+
+#ifndef NPY_IN_ARRAY
+#define NPY_IN_ARRAY NPY_ARRAY_IN_ARRAY
+#endif
+
+#ifndef NPY_OUT_ARRAY
+#define NPY_OUT_ARRAY NPY_ARRAY_OUT_ARRAY
+#endif
+
 static PyObject *wrap_model (PyObject *self, PyObject *args, PyObject *keywds) {
   static char *kwlist[] = { "parm", "t", "typ",
                             "flags", "out", "ol1", "ol2", "iecl",

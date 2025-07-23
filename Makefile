@@ -2,7 +2,7 @@
 
 all:
 	(cd src && $(MAKE))
-	(cd python && $(MAKE))
+	-(cd python && $(MAKE))
 
 python:
 	(cd python && $(MAKE))
